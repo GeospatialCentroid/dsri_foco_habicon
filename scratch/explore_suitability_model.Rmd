@@ -1,0 +1,20 @@
+---
+title: "Test Maxent model code and functions"
+author: "Caitlin Mothes"
+date: "`r Sys.Date()`"
+---
+
+# Setup
+
+```{r}
+source("setup.R")
+```
+
+## Read in inputs
+
+```{r}
+# occurrences
+occ <- read_csv("data/input_occ/final_model_occurrences.csv")
+
+preds <- terra::rast("data/input_processed/final_predictors.tif")
+```
