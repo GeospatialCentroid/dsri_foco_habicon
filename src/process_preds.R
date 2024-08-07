@@ -48,6 +48,9 @@ process_preds <- function(predictor_path, template, resolution, distance=FALSE, 
     # Store the processed object with the filename
     output_object <- rast_shapefile
     
+    names(output_object) <- file_name
+    
+    
   } else if (grepl("\\.tif$", predictor_path, ignore.case = TRUE)) {
     # Read in raster and template files
     raster_file <- rast(predictor_path)
@@ -68,6 +71,9 @@ process_preds <- function(predictor_path, template, resolution, distance=FALSE, 
     
     # Store the processed object with the filename
     output_object <- raster_file
+    
+    names(output_object) <- file_name
+    
     
   } else {
     stop("Unsupported file type.")
