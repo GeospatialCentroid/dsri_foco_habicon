@@ -30,7 +30,8 @@ packages <- c(
   "akima",
   "tmap",
   "spocc",
-  "furrr")
+  "furrr",
+  "ENMeval")
 
 # tack tidyverse on the end always to keep tidyverse functions as default for function conflicts
 packages <- c(packages, "tidyverse")
