@@ -8,6 +8,9 @@ date: "`r Sys.Date()`"
 
 ```{r}
 source("setup.R")
+
+# set up multisession for furrr
+plan(multisession)
 ```
 
 ## Read in inputs
@@ -16,5 +19,36 @@ source("setup.R")
 # occurrences
 occ <- read_csv("data/input_occ/final_model_occurrences.csv")
 
-preds <- terra::rast("data/input_processed/final_predictors.tif")
+# AOI
+gma <- read_sf("data/ft_collins_GMA.shp")
+
+# create a couple test predictors
+files <- c(
+  "data/input_raw/Green_Space/nic_green_space_2015.shp",
+  "data/input_raw/Impervious_Surface/impervious_surfaces_fort_collins_2015.shp",
+  "data/input_raw/Hydrology/Hydrology.shp"
+)
+
+green_space <- process_preds(files[1], template = gma, resolution = 1000, distance = TRUE, save = FALSE)
+
+preds <- purrr::map(files, ~process_preds(.x, template = gma, resolution = 1000, distance = TRUE, save = FALSE))
+
+preds_stack <- terra::rast(preds)
+
+# convert occ to spatial
+occ_sf <- occ %>% 
+  st_as_sf(coords = c("longitude", "latitude"), crs = 4326) %>% 
+  st_transform(crs = crs(preds_stack))
+```
+
+### Map out vars and points
+
+```{r}
+tmap_mode("view")
+
+tm_shape(preds_stack) +
+  tm_raster(style = "cont", legend.show = FALSE) +
+  tm_facets(as.layers = TRUE) +
+  tm_shape(occ_sf) +
+  tm_dots(col = "species")
 ```
