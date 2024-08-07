@@ -19,20 +19,21 @@ source("setup.R")
 template <- read_sf("data/nature_in_the_city/gis/ft_collins_GMA_boundary.shp")
 
 # list of paths to predictors (shapefiles, .tifs, etc.)
-hydrology_path <- c("data/input_raw/Hydrology/Hydrology.shp")
-nlcd_path <- c("data/input_raw/nlcd_tcc_CONUS_2021_v2021-4/nlcd_tcc_conus_2021_v2021-4.tif")
+hydrology_path <- ("data/input_raw/Hydrology/Hydrology.shp")
+nlcd_path <- ("data/input_raw/nlcd_tcc_CONUS_2021_v2021-4/nlcd_tcc_conus_2021_v2021-4.tif")
 
 # set desired resolution
 resolution <- 100
 
 # set output directory
 output_path <- "data/input_processed"
+
 ```
 
 ## set the 'template' crs and extent and write a function that matches these for predictors
 ```{r}
 # write function that reads in predictors and matches CRS and extent to the template
-process_preds <- function(predictor_path, template, resolution, save, output_path) {
+process_preds <- function(predictor_path, template, resolution, distance=FALSE, save, output_path) {
   
   # Initialize variables to hold the processed objects
   rast_shapefile <- NULL
@@ -56,12 +57,16 @@ process_preds <- function(predictor_path, template, resolution, save, output_pat
     rast_shapefile <- terra::rasterize(shapefile, raster_template, fun = mean)
     # Set CRS to match the shapefile
     crs(rast_shapefile) <- st_crs(shapefile)$proj4string
+    
+    if(distance == TRUE) {
+      rast_shapefile <- terra::distance(rast_shapefile)
+    }
 
     # Extract filename without extension for naming 
     file_name <- tools::file_path_sans_ext(basename(predictor_path))
 
     # Store the processed object with the filename
-    output_object <- list(name = file_name, object = rast_shapefile)
+    output_object <- rast_shapefile
     
   } else if (grepl("\\.tif$", predictor_path, ignore.case = TRUE)) {
     # Read in raster and template files
@@ -74,11 +79,15 @@ process_preds <- function(predictor_path, template, resolution, save, output_pat
     # Project cropped raster into template CRS
     raster_file <- project(raster_file, crs(template), res = resolution)
     
+    if(distance == TRUE) {
+      raster_file <- terra::distance(raster_file)
+    }
+    
     # Extract filename without extension for naming
     file_name <- tools::file_path_sans_ext(basename(predictor_path))
     
     # Store the processed object with the filename
-    output_object <- list(name = file_name, object = raster_file)
+    output_object <- raster_file
     
   } else {
     stop("Unsupported file type.")
@@ -113,9 +122,10 @@ process_preds <- function(predictor_path, template, resolution, save, output_pat
 
 ```{r}
 # Process each predictor file and save as independent objects
-hydrology_processed<- process_preds(hydrology_path, template, resolution, save=TRUE, output_path)
-nlcd_processed <- process_preds(nlcd_path, template, resolution, save=TRUE, output_path)
-
+# added a line to hydrology to test the dist argument 
+hydrology_processed<- process_preds(hydrology_path, template, resolution, save=FALSE, output_path)
+hydrology_processed_dist<- process_preds(hydrology_path, template, resolution, distance=TRUE, save=FALSE, output_path)
+nlcd_processed <- process_preds(nlcd_path, template, resolution, save=FALSE, output_path)
 ```
 
 ## plot all layers in tmap to explore overlays 
@@ -126,9 +136,9 @@ tmap_mode("view")
 # add to this as needed
 tm_shape(template) +
   tm_lines(col = "red", lwd = 2) +
-  tm_shape(nlcd_processed[[2]]) + # Access the first SpatRaster object in the list
+  tm_shape(hydrology_processed) + # Access the first SpatRaster object in the list
   tm_raster() +
-  tm_shape(hydrology_processed[[2]]) + # Access the first SpatRaster object in the list
+  tm_shape(hydrology_processed_dist) + # Access the first SpatRaster object in the list
   tm_raster()
 ```
 
