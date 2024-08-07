@@ -143,7 +143,7 @@ species_names <- read_csv("data/NIC_survey_occ_processed.csv") %>%
 source("src/get_occ.R")
 
 # use `furrr` to run faster in parallel
-plan(multisession())
+plan(multisession)
 
 ## run inside system.time to calc run time
 system.time(pulled_occ <- furrr::future_map_dfr(species_names,
