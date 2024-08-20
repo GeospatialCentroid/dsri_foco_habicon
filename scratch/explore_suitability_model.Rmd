@@ -1,5 +1,6 @@
 ---
-title: "Explore habitat suitability modle workflow"
+test---
+title: "Explore habitat suitability model workflow"
 author: "Caitlin Mothes"
 date: "`r Sys.Date()`"
 ---
@@ -24,7 +25,7 @@ species <- "Agelaius phoeniceus"
 # occurrences
 occ <- read_csv("data/input_occ/final_model_occurrences.csv") %>% 
   # for testing keep just one species
-  filter(species == species)
+  filter(species == {{species}})
 
 # AOI
 gma <- read_sf("data/ft_collins_GMA.shp")
@@ -114,13 +115,20 @@ Notes:
 -   Using `parallell = TRUE` this ran in seconds compared to minutes++
 
 ```{r}
-all_mods <- ENMevaluate(occs = occ_mod, envs = preds_mod, 
-                    #bg = bg_mod, #can also leave this out and set 'n.bg = ##' instead
-                    algorithm = 'maxnet', partitions = 'randomkfold', 
-                    taxon.name = species,
-                    tune.args = list(fc = c("L","LQ","LQH","H"), rm = 1:5),
-                    parallel = TRUE
-                    )
+all_mods <- ENMevaluate(
+  occs = occ_mod,
+  envs = preds_mod,
+  #bg = bg_mod, #can also leave this out and set 'n.bg = ##' instead
+  algorithm = 'maxnet',
+  partitions = 'randomkfold',
+  taxon.name = species,
+  # features as in Steen et al
+  tune.args = list(
+    fc = c("L", "LQ", "LQP", "H", "LQHP"),
+    rm = seq(1, 5, 0.5)
+  ),
+  parallel = TRUE
+)
 ```
 
 ## Visualize tuning results
@@ -128,20 +136,28 @@ all_mods <- ENMevaluate(occs = occ_mod, envs = preds_mod,
 Look at omission rates and validation AUC
 
 ```{r}
-evalplot.stats(e = all_mods, stats = c("or.mtp", "auc.val"), color = "fc", x.var = "rm", 
-               error.bars = FALSE)
+evalplot.stats(
+  e = all_mods,
+  stats = c("auc.diff", "cbi.val", "or.10p"),
+  color = "fc",
+  x.var = "rm",
+  error.bars = FALSE
+  #dodge = 0.5
+)
 ```
 
 # Model Selection
 
-Choose top model based lowest omission rate and highest validation AUC (to break ties)
+Choose top model based on highest boyce index and lowest omission rate and AUC diff (to break ties)
 
 -   Idea, give the user the option to choose best model or most complex/simple model
 
 ```{r}
 top_mod_args <- eval.results(all_mods) %>%
-  filter(or.10p.avg == min(or.10p.avg)) %>%
-  filter(auc.val.avg == max(auc.val.avg))
+  filter(cbi.val.avg == max(cbi.val.avg, na.rm = TRUE)) %>% 
+    filter(auc.diff.avg == max(auc.diff.avg, na.rm = TRUE)) %>% 
+  filter(or.10p.avg == min(or.10p.avg, na.rm = TRUE))
+
 
 selected_mod <- eval.models(all_mods)[[top_mod_args$tune.args]]
 ```
@@ -162,8 +178,7 @@ plot(selected_mod, type = "cloglog")
 predicted_mod <- eval.predictions(all_mods)[[top_mod_args$tune.args]]
 
 tm_shape(predicted_mod) +
-  tm_raster(style = "cont") +
-  tm_shape(eval.bg(all_mods))
+  tm_raster(style = "cont")
 ```
 
 ```{r}
@@ -192,8 +207,8 @@ par(mfrow=c(2,1), mar=c(2,1,2,0))
 plot(eval.predictions(all_mods)[['fc.L_rm.5']], #ylim = c(-30,20), xlim = c(-90,-30), 
      legend = FALSE, main = 'L_5 prediction')
 # The most complex model: linear, quadratic, and hinge features with low regularization
-plot(eval.predictions(all_mods)[['fc.LQH_rm.1']], #ylim = c(-30,20), xlim = c(-90,-30), 
-     legend = FALSE, main = 'LQH_1 prediction')
+plot(eval.predictions(all_mods)[['fc.LQHP_rm.1']], #ylim = c(-30,20), xlim = c(-90,-30), 
+     legend = FALSE, main = 'LQHP_1 prediction')
 ```
 
 # Null Models
@@ -207,14 +222,18 @@ Calculate null models using settings of best model
 ```{r}
 null_mod <- ENMnulls(
   e = all_mods,
-  mod.settings = list(fc = "LQ", rm = 5), no.iter = 100
+  mod.settings = list(fc = as.character(top_mod_args$fc), rm = as.numeric(top_mod_args$rm)),
+  no.iter = 100,
+  parallel = TRUE
 )
 ```
 
 Plot results and view p-values
 
+Here hoping for empirical eval metrics that are significantly better than a null model.
+
 ```{r}
-evalplot.nulls(null_mod, stats = c("or.10p", "auc.val"), plot.type = "histogram")
+evalplot.nulls(null_mod, stats = c("or.10p", "auc.val", "cbi.val"), plot.type = "histogram")
 ```
 
 ```{r}
@@ -227,41 +246,71 @@ null.emp.results(null_mod)
 # Generate a rangeModelMetadata object based on the information stored in the 
 # ENMevaluate object.
 rmm <- eval.rmm(all_mods)
-# We can fill in the model selection rules based on the sequential criteria we chose.
-rmm$model$selectionRules <- "lowest 10 percentile omission rate, 
-break ties with average validation AUC"
-# We can also enter our optimal model settings and the details of our optimal 
-# model's prediction.
-rmm$model$finalModelSettings <- paste(top_mod_args$fc, top_mod_args$rm)
-rmm$prediction$continuous$minVal <- raster::cellStats(predicted_mod, min)
-rmm$prediction$continuous$maxVal <- raster::cellStats(predicted_mod, max)
-rmm$prediction$continuous$units <- "suitability (cloglog transformation)"
-
 ```
 
-# Next Steps
-
--   Figure out what to save from this rmm output, OR create our own output
-
--   Things to include in output:
-
-    -   Model params/methods (stuff from rmm)
-
-    -   Predicted raster
-
-    -   response curves
-
-    -   null model results table
-
-    -   Maybe results for: best model, simple model and complex model?
-
-    -   tuning results plot
+Create own output with metadata of interest:
 
 ```{r}
-# will still want to remove a lot of this, maybe best to just specify what we DO want
-cleaned_rmm <- map_dfr(rmm, function(x){
-  enframe(x)}
-  ) %>% remove_nulls()
+output_metadata <- tibble(
+  #variable_names = I(list(rmm$data$environment$variableNames)),
+  projection = rmm$data$environment$projection,
+  species = rmm$data$occurrence$taxon,
+  sample_size = rmm$data$occurrence$presenceSampleSize,
+  background_sample_size = rmm$data$occurrence$backgroundSampleSize,
+  prediction_units = "suitability (cloglog transformation)",
+  min_prediction = raster::cellStats(predicted_mod, min),
+  max_prediction = raster::cellStats(predicted_mod, max),
+  selection_rules = "highest correlation Boyce index with lowest 10 percentile omission rate and AUC diff to break ties"
+) %>% 
+  bind_cols(top_mod_args) %>% 
+  mutate_all(as.character) %>% 
+  pivot_longer(cols = everything())
+```
 
-cleaned_df <- tibble(name = names(cleaned_rmm), value = cleaned_rmm)
+### Save final output
+
+```{r}
+final_output <- list(
+  metadata = output_metadata,
+  tuning_results = eval.results(all_mods),
+  tuning_results_plot = evalplot.stats(
+    e = all_mods,
+    stats = c("auc.diff", "cbi.val", "or.10p"),
+    color = "fc",
+    x.var = "rm",
+    error.bars = FALSE),
+  prediction_map = predicted_mod,
+  selected_mod = selected_mod,
+  response_curves = plot(selected_mod, type = "cloglog"),
+  null_models = null.emp.results(null_mod),
+  null_model_plots = evalplot.nulls(null_mod, stats = c("or.10p", "auc.val", "cbi.val"), plot.type = "histogram")
+)
+```
+
+To do - Need to find a way to calculate variable importance and response curve plots
+
+<https://rdrr.io/github/mrmaxent/maxnet/src/R/response.plot.R>
+
+```{r}
+v <- "Hydrology"
+mod <-  selected_mod
+levels = unlist(mod$levels[v])
+ mm=mod$samplemeans
+  min=mod$varmin[v]
+   max=mod$varmin[v]
+
+nr <- if (is.null(levels)) {
+  100
+} else {
+  length(levels)
+}
+
+m <- data.frame(matrix(mm, nr, length(mm), byrow = T))
+colnames(m) <- names(mm)
+
+m[, v] <- if (!is.null(levels)) levels else seq(min - 0.1 * (max - min), max + 0.1 * (max - min), length = 100)
+
+preds <- predict(mod, m, type="cloglog")
+
+ plot(m[,v], preds, xlab=xlab, ylab=ylab, type="l") 
 ```

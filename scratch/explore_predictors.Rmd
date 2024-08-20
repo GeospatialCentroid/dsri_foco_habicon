@@ -154,6 +154,9 @@ rwbl_cores <- read_sf("data/nic_wildlife_connectivity_map_v2/connectivity_models
 
 rwbl_conn <- rast("data/nic_wildlife_connectivity_map_v2/connectivity_models/rwbl_connect")
 
+rescale_conn <- (rwbl_conn - min(terra::values(rwbl_conn), na.rm = TRUE)) / (max(terra::values(rwbl_conn), na.rm = TRUE) - min(terra::values(rwbl_conn), na.rm = TRUE))
+
+            
 ```
 
 ## Explore outputs
@@ -162,9 +165,9 @@ rwbl_conn <- rast("data/nic_wildlife_connectivity_map_v2/connectivity_models/rwb
 tmap_mode("view")
 
 tm_shape(rwbl_habitat) +
-  tm_raster(style = "cont") +
-  tm_shape(rwbl_conn) +
-  tm_raster(style = "cont") +
+  tm_raster(style = "cont", palette = "inferno") +
+  tm_shape(rescale_conn) +
+  tm_raster(style = "cont", palette = "inferno") +
   tm_shape(rwbl_cores) +
   tm_polygons()
 
