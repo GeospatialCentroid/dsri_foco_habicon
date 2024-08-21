@@ -158,7 +158,6 @@ top_mod_args <- eval.results(all_mods) %>%
     filter(auc.diff.avg == max(auc.diff.avg, na.rm = TRUE)) %>% 
   filter(or.10p.avg == min(or.10p.avg, na.rm = TRUE))
 
-
 selected_mod <- eval.models(all_mods)[[top_mod_args$tune.args]]
 ```
 
@@ -267,6 +266,47 @@ output_metadata <- tibble(
   pivot_longer(cols = everything())
 ```
 
+Get raw response curve data
+
+Retrieved raw code from: <https://rdrr.io/github/mrmaxent/maxnet/src/R/response.plot.R>
+
+```{r}
+# function to pull rc data for each variable
+get_rc <- function(v,
+                   mod,
+                   levels = unlist(mod$levels[v]),
+                   mm = mod$samplemeans,
+                   min = mod$varmin[v],
+                   max = mod$varmax[v]) {
+  nr <- if (is.null(levels)) {
+    100
+  } else {
+    length(levels)
+  }
+  
+  m <- data.frame(matrix(mm, nr, length(mm), byrow = T))
+  colnames(m) <- names(mm)
+  
+  m[, v] <- if (!is.null(levels)) {
+    levels
+  } else {
+    seq(min - 0.1 * (max - min), max + 0.1 * (max - min), length = nr)
+  }
+  
+  preds <- predict(mod, m, type = "cloglog")
+  
+  output <- tibble(preds = preds[, 1], val = m[, v]) %>%
+    rename("preds_{v}" := preds, !!sym(v) := val)
+  
+  return(output)
+  
+}
+
+# create df for all variables
+response_curves <- map(names(selected_mod$samplemeans), ~get_rc(v = .x, mod = selected_mod)) %>% 
+  bind_cols()
+```
+
 ### Save final output
 
 ```{r}
@@ -281,36 +321,8 @@ final_output <- list(
     error.bars = FALSE),
   prediction_map = predicted_mod,
   selected_mod = selected_mod,
-  response_curves = plot(selected_mod, type = "cloglog"),
+  response_curves = response_curves,
   null_models = null.emp.results(null_mod),
   null_model_plots = evalplot.nulls(null_mod, stats = c("or.10p", "auc.val", "cbi.val"), plot.type = "histogram")
 )
-```
-
-To do - Need to find a way to calculate variable importance and response curve plots
-
-<https://rdrr.io/github/mrmaxent/maxnet/src/R/response.plot.R>
-
-```{r}
-v <- "Hydrology"
-mod <-  selected_mod
-levels = unlist(mod$levels[v])
- mm=mod$samplemeans
-  min=mod$varmin[v]
-   max=mod$varmin[v]
-
-nr <- if (is.null(levels)) {
-  100
-} else {
-  length(levels)
-}
-
-m <- data.frame(matrix(mm, nr, length(mm), byrow = T))
-colnames(m) <- names(mm)
-
-m[, v] <- if (!is.null(levels)) levels else seq(min - 0.1 * (max - min), max + 0.1 * (max - min), length = 100)
-
-preds <- predict(mod, m, type="cloglog")
-
- plot(m[,v], preds, xlab=xlab, ylab=ylab, type="l") 
 ```
