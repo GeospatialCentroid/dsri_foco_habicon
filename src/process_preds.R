@@ -52,19 +52,20 @@ process_preds <- function(predictor_path, template, resolution, distance=FALSE, 
     # Read in raster and template files
     raster_file <- rast(predictor_path)
     
-    # Set template temporarily to raster CRS
+    # Set template temporarily to raster CRS - so we don't need to project full, large rasters
     shapefile_temp <- st_transform(template, crs = crs(raster_file))
     
     # crop to the temp shapefile
     raster_file <- crop(raster_file, shapefile_temp)
     
-    # Project cropped raster into template CRS
-    raster_file <- project(raster_file, crs(template), res = resolution)
-    
     # Convert the template to a raster with the same extent and resolution
     template_raster <- rast(ext(template), resolution = resolution, crs = crs(template))
+    
+    # Project cropped raster into template CRS
+    raster_file <- project(raster_file, template_raster)
+    
     # Align the raster to the template's resolution and extent
-    raster_file <- resample(raster_file, template_raster, method = "bilinear")
+    # raster_file <- resample(raster_file, template_raster, method = "bilinear")
     
     if(distance == TRUE) {
       raster_file <- terra::distance(raster_file)
