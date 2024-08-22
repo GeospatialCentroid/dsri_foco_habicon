@@ -1,5 +1,4 @@
 ---
-test---
 title: "Explore habitat suitability model workflow"
 author: "Caitlin Mothes"
 date: "`r Sys.Date()`"
@@ -15,7 +14,7 @@ source("setup.R")
 # set up multisession for furrr
 #plan(multisession)
 
-# set some parameters for testing
+# set species for testing
 species <- "Agelaius phoeniceus"
 ```
 
@@ -65,7 +64,7 @@ tm_shape(preds_stack) +
 
 Sample 10,000 random background points
 
-*In the future, consider target-group background points.*
+*In the future, consider target-group background points?*
 
 ```{r}
 bg <- dismo::randomPoints(raster::raster(preds_stack), n = 10000) %>% as.data.frame() %>% 
@@ -216,7 +215,7 @@ Allow us to calculate significance and effect size of model metrics by comparing
 
 Calculate null models using settings of best model
 
-*Note, parallel = TRUE does not work on this for some reason, took 4 minutes without*
+*Note, parallel = TRUE does not work on this for some reason, took 4 minutes without. GitHub says working on this for version 2.0.5.*
 
 ```{r}
 null_mod <- ENMnulls(
