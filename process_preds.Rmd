@@ -76,7 +76,7 @@ process_preds <- function(predictor_path, template, resolution, distance=FALSE, 
     # Read in raster and template files
     raster_file <- rast(predictor_path)
 
-    # Set template temporarily to raster CRS - do this so we can crop before projecting/don't need to project full,   large rasters.
+    # Set template temporarily to raster CRS - so we don't need to project full, large rasters
     shapefile_temp <- st_transform(template, crs = crs(raster_file))
     
     # crop to the temp shapefile
