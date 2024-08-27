@@ -168,14 +168,13 @@ execute_SDM <- function(species, occ, predictors, features = c("L", "LQ", "LQP",
       x.var = "rm",
       error.bars = FALSE),
     prediction_map = predicted_mod,
+    all_mods = all_mods,
     selected_mod = selected_mod,
     response_curves = response_curves,
     variable_importance = vi,
     null_models = null.emp.results(null_mod),
     null_model_plots = evalplot.nulls(null_mod, stats = c("or.10p", "auc.val", "cbi.val"), plot.type = "histogram")
   )
-  
-  return(final_output)
   
   # save the file
   if (save) {
@@ -187,6 +186,8 @@ execute_SDM <- function(species, occ, predictors, features = c("L", "LQ", "LQP",
     save(final_output, file = paste0(output_path, "/", species, "_SDM_results.RData"))
     
   }
+  
+  return(final_output)
   
   
 }
