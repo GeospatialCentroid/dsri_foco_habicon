@@ -17,25 +17,18 @@ execute_SDM <- function(species, occ, predictors, features = c("L", "LQ", "LQP",
   
   # Prepare Maxent inputs ----
   
+  ## Occurrences
+  occ_mod <- occ %>% 
+    dplyr::select(longitude, latitude)
+  
   ## Background points
-  bg <- dismo::randomPoints(raster::raster(predictors), n = 10000) %>% as.data.frame() %>% 
+  bg_mod <- dismo::randomPoints(raster::raster(predictors), n = 10000) %>% as.data.frame() %>% 
     rename(longitude = x, latitude = y) %>% 
-    st_as_sf(coords = c("longitude","latitude"), crs = crs(predictors))
-  
-  ## Model -specific requirements
-  # convert points to a df of just lat/long for model input
-  occ_mod <- occ_sf %>%
-    mutate(latitude = st_coordinates(.)[, "Y"], longitude = st_coordinates(.)[, "X"]) %>%
-    dplyr::select(longitude, latitude) %>%
-    st_drop_geometry()
-  
-  bg_mod <- bg %>%
-    mutate(latitude = st_coordinates(.)[, "Y"], longitude = st_coordinates(.)[, "X"]) %>%
-    dplyr::select(longitude, latitude) %>%
-    st_drop_geometry()
+    dplyr::select(longitude, latitude)
   
   # convtert SpatRaster to RasterStack
   preds_mod <- raster::brick(predictors)
+  
   
   # Run Maxent ----
   
@@ -183,6 +176,17 @@ execute_SDM <- function(species, occ, predictors, features = c("L", "LQ", "LQP",
   )
   
   return(final_output)
+  
+  # save the file
+  if (save) {
+    
+    if (!dir.exists(output_path)) {
+      dir.create(output_path, recursive = TRUE)
+    }
+    
+    save(final_output, file = paste0(output_path, "/", species, "_SDM_results.RData"))
+    
+  }
   
   
 }
