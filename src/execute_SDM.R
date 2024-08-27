@@ -61,6 +61,12 @@ execute_SDM <- function(species, occ, predictors, features = c("L", "LQ", "LQP",
     filter(auc.diff.avg == max(auc.diff.avg, na.rm = TRUE)) %>% 
     filter(or.10p.avg == min(or.10p.avg, na.rm = TRUE))
   
+  # need an if/then if there are ties, just choose first one
+  if(nrow(top_mod_args) > 1) {
+    top_mod_args <- top_mod_args[1,]
+  }
+  
+  
   selected_mod <- eval.models(all_mods)[[top_mod_args$tune.args]]
   
   # Model Predictions ----
@@ -76,7 +82,7 @@ execute_SDM <- function(species, occ, predictors, features = c("L", "LQ", "LQP",
     no.iter = 100
   )
   
-  # Compile Metadata
+  # Compile Metadata ----
   
   rmm <- eval.rmm(all_mods)
   
@@ -95,8 +101,10 @@ execute_SDM <- function(species, occ, predictors, features = c("L", "LQ", "LQP",
     mutate_all(as.character) %>% 
     pivot_longer(cols = everything())
   
-  ### Raw response curve data
-  # function to pull rc data for each variable
+  
+  # Raw response curve data ----
+  
+  ## function to pull rc data for each variable
   get_rc <- function(v,
                      mod,
                      levels = unlist(mod$levels[v]),
@@ -127,12 +135,36 @@ execute_SDM <- function(species, occ, predictors, features = c("L", "LQ", "LQP",
     
   }
   
-  # create df for all variables
+  ## create df for all variables
   response_curves <- map(names(selected_mod$samplemeans), ~get_rc(v = .x, mod = selected_mod)) %>% 
     bind_cols()
   
   
-  # Save final output
+  # Calculate variable importance ----
+  ## create SWD object
+  swd_obj <- prepareSWD(species = species,
+                        p = occ_mod,
+                        a = bg_mod,
+                        env = terra::rast(preds_mod))
+  
+  
+  ## Use cross validation
+  folds <-  randomFolds(swd_obj,
+                        k = 10,
+                        only_presence = TRUE)
+  ## create SDMmodel
+  SDM_mod <- train(method = "Maxnet",
+                   data = swd_obj,
+                   fc = tolower(as.character(top_mod_args$fc)),
+                   reg = as.numeric(top_mod_args$rm),
+                   folds = folds)
+  
+  ## Compute variable importance
+  vi <- varImp(SDM_mod,
+               permut = 10)
+  
+  
+  # Save final output ----
   final_output <- list(
     metadata = output_metadata,
     tuning_results = eval.results(all_mods),
@@ -145,6 +177,7 @@ execute_SDM <- function(species, occ, predictors, features = c("L", "LQ", "LQP",
     prediction_map = predicted_mod,
     selected_mod = selected_mod,
     response_curves = response_curves,
+    variable_importance = vi,
     null_models = null.emp.results(null_mod),
     null_model_plots = evalplot.nulls(null_mod, stats = c("or.10p", "auc.val", "cbi.val"), plot.type = "histogram")
   )

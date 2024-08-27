@@ -157,6 +157,11 @@ top_mod_args <- eval.results(all_mods) %>%
     filter(auc.diff.avg == max(auc.diff.avg, na.rm = TRUE)) %>% 
   filter(or.10p.avg == min(or.10p.avg, na.rm = TRUE))
 
+# need an if/then if there are ties, just choose first one
+if(nrow(top_mod_args) > 1) {
+  top_mod_args <- top_mod_args[1,]
+}
+
 selected_mod <- eval.models(all_mods)[[top_mod_args$tune.args]]
 ```
 
@@ -265,7 +270,7 @@ output_metadata <- tibble(
   pivot_longer(cols = everything())
 ```
 
-Get raw response curve data
+### Response Curve Data
 
 Retrieved raw code from: <https://rdrr.io/github/mrmaxent/maxnet/src/R/response.plot.R>
 
@@ -306,7 +311,34 @@ response_curves <- map(names(selected_mod$samplemeans), ~get_rc(v = .x, mod = se
   bind_cols()
 ```
 
-### Save final output
+### Variable Importance
+
+```{r}
+# create SWD object
+swd_obj <- prepareSWD(species = species,
+                   p = occ_mod,
+                   a = bg_mod,
+                   env = terra::rast(preds_mod))
+
+
+# Use cross validation
+folds <-  randomFolds(swd_obj,
+                    k = 10,
+                    only_presence = TRUE)
+# create SDMmodel
+SDM_mod <- train(method = "Maxnet",
+               data = swd_obj,
+               fc = tolower(as.character(top_mod_args$fc)),
+               reg = as.numeric(top_mod_args$rm),
+               folds = folds)
+
+# Compute variable importance
+vi <- varImp(SDM_mod,
+             permut = 10)
+
+```
+
+## Save final output
 
 ```{r}
 final_output <- list(
@@ -321,6 +353,7 @@ final_output <- list(
   prediction_map = predicted_mod,
   selected_mod = selected_mod,
   response_curves = response_curves,
+  variable_importance = vi,
   null_models = null.emp.results(null_mod),
   null_model_plots = evalplot.nulls(null_mod, stats = c("or.10p", "auc.val", "cbi.val"), plot.type = "histogram")
 )
