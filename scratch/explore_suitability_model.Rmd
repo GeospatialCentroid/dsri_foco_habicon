@@ -181,7 +181,7 @@ plot(selected_mod, type = "cloglog")
 predicted_mod <- eval.predictions(all_mods)[[top_mod_args$tune.args]]
 
 tm_shape(predicted_mod) +
-  tm_raster(style = "cont")
+  tm_raster(style = "cont", palette = "inferno")
 ```
 
 ```{r}

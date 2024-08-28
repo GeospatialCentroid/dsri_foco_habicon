@@ -52,14 +52,39 @@ species <- unique(occ$species)
 ## Run `execute_SDM()` function across species
 
 ```{r}
-# test for first species for now
-spec_1 <- execute_SDM(
-  species = species[1],
-  occ = occ_prj,
-  predictors = preds_stack,
-  features = c("LQ", "LQHP"),
-  rm = 1:5,
-  save = TRUE,
-  output_path = "sdm_test/"
+start <- Sys.time()
+
+species_SDMs <- purrr::map(
+  species,
+  ~ execute_SDM(
+    species = .x,
+    occ = occ_prj[occ_prj$species == .x,],
+    predictors = preds_stack,
+    #features = c("LQ", "LQHP"), # note the model throws an error when using "H" features
+    rm = 1:5,
+    null_models = FALSE,
+    save = TRUE,
+    output_path = "data/output_sdm/"
+  )
+)
+
+# name final list with species names
+names(species_SDMs) <- species
+
+end <- Sys.time()
+
+end-start
+```
+
+## Look at suitability maps
+
+```{r}
+tmap_mode("view")
+
+
+purrr::map(
+  species_SDMs,
+  ~ tm_shape(.x$prediction_map) +
+    tm_raster(style = "cont", palette = "inferno", title = .x$metadata[2,2])
 )
 ```
