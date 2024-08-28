@@ -8,12 +8,19 @@
 #' @param predictors A SpatRaster object of all processed predictor variables 
 #' @param features A list of all feature classes to compare. Default is all avaialble feature classes.
 #' @param rm Vector of numbers of regularization multipliers to compare. Default is 1-10 in 0.5 increments.
+#' @param null_models Logical, whether or not to run the null models component (since this is a time sink)
 #' @param save Logical; Whether to save the resulting list as an .RData file or not.
 #' @param output_path If `save = TRUE`, the file path to save the .RData file
 #'
 #' @return  A list object with all model results of interest
-execute_SDM <- function(species, occ, predictors, features = c("L", "LQ", "LQP", "H", "LQHP"), rm = seq(1, 10, 0.5),
-                        save = FALSE, output_path) {
+execute_SDM <- function(species,
+                        occ,
+                        predictors,
+                        features = c("L", "LQ", "LQP", "LQH", "LQHP"),
+                        rm = seq(1, 10, 0.5),
+                        null_models = FALSE,
+                        save = FALSE,
+                        output_path) {
   
   # Prepare Maxent inputs ----
   
@@ -64,16 +71,21 @@ execute_SDM <- function(species, occ, predictors, features = c("L", "LQ", "LQP",
   
   # Model Predictions ----
   
-  predicted_mod <- eval.predictions(all_mods)[[top_mod_args$tune.args]]
+  predicted_mod <- eval.predictions(all_mods)[[top_mod_args$tune.args]] %>% 
+    #convert to terra object
+    terra::rast()
   
   
   # Null Models ----
+  if (null_models) {
   
-  null_mod <- ENMnulls(
+    null_mod <- ENMnulls(
     e = all_mods,
     mod.settings = list(fc = as.character(top_mod_args$fc), rm = as.numeric(top_mod_args$rm)),
     no.iter = 100
   )
+  
+  }
   
   # Compile Metadata ----
   
@@ -86,8 +98,8 @@ execute_SDM <- function(species, occ, predictors, features = c("L", "LQ", "LQP",
     sample_size = rmm$data$occurrence$presenceSampleSize,
     background_sample_size = rmm$data$occurrence$backgroundSampleSize,
     prediction_units = "suitability (cloglog transformation)",
-    min_prediction = raster::cellStats(predicted_mod, min),
-    max_prediction = raster::cellStats(predicted_mod, max),
+    min_prediction = terra::minmax(predicted_mod)["min",],
+    max_prediction = terra::minmax(predicted_mod)["max",],
     selection_rules = "highest correlation Boyce index with lowest 10 percentile omission rate and AUC diff to break ties"
   ) %>% 
     bind_cols(top_mod_args) %>% 
@@ -129,7 +141,8 @@ execute_SDM <- function(species, occ, predictors, features = c("L", "LQ", "LQP",
   }
   
   ## create df for all variables
-  response_curves <- map(names(selected_mod$samplemeans), ~get_rc(v = .x, mod = selected_mod)) %>% 
+  response_curves <- map(names(selected_mod$samplemeans),
+                         ~ get_rc(v = .x, mod = selected_mod)) %>%
     bind_cols()
   
   
@@ -171,10 +184,19 @@ execute_SDM <- function(species, occ, predictors, features = c("L", "LQ", "LQP",
     all_mods = all_mods,
     selected_mod = selected_mod,
     response_curves = response_curves,
-    variable_importance = vi,
-    null_models = null.emp.results(null_mod),
-    null_model_plots = evalplot.nulls(null_mod, stats = c("or.10p", "auc.val", "cbi.val"), plot.type = "histogram")
-  )
+    variable_importance = vi)
+  
+  if (null_models) {
+    final_output <- c(
+      final_output,
+      null_models = null.emp.results(null_mod),
+      null_model_plots = evalplot.nulls(
+        null_mod,
+        stats = c("or.10p", "auc.val", "cbi.val"),
+        plot.type = "histogram"
+      )
+    )
+  }
   
   # save the file
   if (save) {
