@@ -1,0 +1,22 @@
+---
+title: "Variable Metatdata"
+output: github_document
+---
+
+|                                                     |              |                                   |                       |                           |                                |
+|---------------|-------------------|------------|-----------|---------|---------|
+| Indicator                                           | Dataset used | Processing script (if applicable) | Indicator Description | Time frame / last updated | Spatial resolution (if raster) |
+| Impervious surface within x distance                |              | src/process_preds.R               |                       |                           |                                |
+| Land use type                                       |              | src/process_preds.R               |                       |                           |                                |
+| Natural habiat cover within x distance              |              | src/process_preds.R               |                       |                           |                                |
+| Distance to river                                   |              | src/process_preds.R               |                       |                           |                                |
+| Vegetative cover within x distance                  |              | src/process_preds.R               |                       |                           |                                |
+| Distance to nearest residential structure           |              | src/process_preds.R               |                       |                           |                                |
+| Residential structure density within                |              | src/process_preds.R               |                       |                           |                                |
+| Distance to nearest structure                       |              | src/process_preds.R               |                       |                           |                                |
+| Green space cover within x distance                 |              | src/process_preds.R               |                       |                           |                                |
+| Structure density within x distance                 |              | src/process_preds.R               |                       |                           |                                |
+| Distance to nearest commercial structure            |              | src/process_preds.R               |                       |                           |                                |
+| Green space median patch size within x distance     |              | src/process_preds.R               |                       |                           |                                |
+| Distance to GMA boundary                            |              | src/process_preds.R               |                       |                           |                                |
+| Natural habitat median patch size within x distance |              | src/process_preds.R               |                       |                           |                                |
