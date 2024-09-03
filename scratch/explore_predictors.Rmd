@@ -105,6 +105,8 @@ gs_dist <- terra::distance(nic_green_space_2015)
 
 Looks good! Try with impervious surface (processing this layer takes a bit of time)
 
+### Impervious Surface
+
 ```{r}
 process_file(input_path = "data/nature_in_the_city/gis/impervious_surfaces_fort_collins_2015.shp", resolution = 10, template_path = "data/nature_in_the_city/gis/ft_collins_GMA_boundary.shp")
   
@@ -119,6 +121,23 @@ tm_shape(is_dist) +
 ```
 
 Seeing some edge effects here...using an updated impervious surface layer and an aoi buffer could prevent this.
+
+### Hydrology
+
+Use `nhdplusTools` to full flowlines and water bodies:
+
+```{r}
+#flowlines
+foco_flowlines <- nhdplusTools::get_nhdplus(AOI = st_buffer(foco_boundary, 1000))
+
+# water bodies
+foco_waterbodies <- nhdplusTools::get_waterbodies(AOI = st_buffer(foco_boundary, 1000))
+
+qtm(foco_flowlines, lines.col = "blue") +
+  qtm(foco_waterbodies, fill = "lightblue")
+```
+
+The resolution of this isn't great...use current Fort Collins hydrology layer for now (as a placeholder) and maybe improve this data with the landcover data.
 
 # Explore NIC model outputs
 
@@ -135,6 +154,9 @@ rwbl_cores <- read_sf("data/nic_wildlife_connectivity_map_v2/connectivity_models
 
 rwbl_conn <- rast("data/nic_wildlife_connectivity_map_v2/connectivity_models/rwbl_connect")
 
+rescale_conn <- (rwbl_conn - min(terra::values(rwbl_conn), na.rm = TRUE)) / (max(terra::values(rwbl_conn), na.rm = TRUE) - min(terra::values(rwbl_conn), na.rm = TRUE))
+
+            
 ```
 
 ## Explore outputs
@@ -143,9 +165,9 @@ rwbl_conn <- rast("data/nic_wildlife_connectivity_map_v2/connectivity_models/rwb
 tmap_mode("view")
 
 tm_shape(rwbl_habitat) +
-  tm_raster(style = "cont") +
-  tm_shape(rwbl_conn) +
-  tm_raster(style = "cont") +
+  tm_raster(style = "cont", palette = "inferno") +
+  tm_shape(rescale_conn) +
+  tm_raster(style = "cont", palette = "inferno") +
   tm_shape(rwbl_cores) +
   tm_polygons()
 

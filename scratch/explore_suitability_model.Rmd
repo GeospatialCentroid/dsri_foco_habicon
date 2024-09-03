@@ -1,0 +1,360 @@
+---
+title: "Explore habitat suitability model workflow"
+author: "Caitlin Mothes"
+date: "`r Sys.Date()`"
+---
+
+A lot of this code and recommended workflow was derived from the `ENMeval` package vignette: <https://jamiemkass.github.io/ENMeval/articles/ENMeval-2.0-vignette.html>
+
+# Setup
+
+```{r}
+source("setup.R")
+
+# set up multisession for furrr
+#plan(multisession)
+
+# set species for testing
+species <- "Agelaius phoeniceus"
+```
+
+## Read in inputs
+
+```{r}
+# occurrences
+occ <- read_csv("data/input_occ/final_model_occurrences.csv") %>% 
+  # for testing keep just one species
+  filter(species == {{species}})
+
+# AOI
+gma <- read_sf("data/ft_collins_GMA.shp")
+
+# create a couple test predictors
+files <- c(
+  "data/input_raw/Green_Space/nic_green_space_2015.shp",
+  "data/input_raw/Street_Centerlines/Street_Centerlines.shp",
+  "data/input_raw/Hydrology/Hydrology.shp"
+)
+
+
+preds <- purrr::map(files, ~process_preds(.x, template = gma, resolution = 500, distance = TRUE, save = FALSE))
+
+preds_stack <- terra::rast(preds)
+
+# convert occ to spatial for some downstream stuff
+occ_sf <- occ %>% 
+  st_as_sf(coords = c("longitude", "latitude"), crs = 4326) %>% 
+  st_transform(crs = crs(preds_stack))
+      
+```
+
+### Map out vars and points
+
+```{r}
+tmap_mode("view")
+
+tm_shape(preds_stack) +
+  tm_raster(style = "cont", legend.show = FALSE) +
+  tm_facets(as.layers = TRUE) +
+  tm_shape(occ_sf) +
+  tm_dots(col = "species")
+```
+
+### Background Points
+
+Sample 10,000 random background points
+
+*In the future, consider target-group background points?*
+
+```{r}
+bg <- dismo::randomPoints(raster::raster(preds_stack), n = 10000) %>% as.data.frame() %>% 
+  rename(longitude = x, latitude = y) %>% 
+  st_as_sf(coords = c("longitude","latitude"), crs = crs(preds_stack))
+```
+
+Plot bg points
+
+```{r}
+qtm(preds_stack[[1]]) +
+  qtm(bg)
+```
+
+### 
+
+# Execute
+
+Prepare inputs for model specifications:
+
+```{r}
+# convert points to a df of just lat/long for model input
+occ_mod <- occ_sf %>%
+  mutate(latitude = st_coordinates(.)[, "Y"], longitude = st_coordinates(.)[, "X"]) %>%
+  dplyr::select(longitude, latitude) %>%
+  st_drop_geometry()
+
+bg_mod <- bg %>%
+  mutate(latitude = st_coordinates(.)[, "Y"], longitude = st_coordinates(.)[, "X"]) %>%
+  dplyr::select(longitude, latitude) %>%
+  st_drop_geometry()
+  
+# convtert SpatRaster to RasterStack
+preds_mod <- raster::brick(preds_stack)
+```
+
+## Run Maxent
+
+Using the `maxnet` package which removes the needs to deal with rJava and maxent.jar files.
+
+Notes:
+
+-   Partitions uses 5 groups by default. To change this add `partition.settings = list(kfolds = ##)`
+
+-   Uses variable clamping by default, meaning prediction extrapolations are restricted to the upper and lower bounds of predictor variables
+
+-   Using `parallell = TRUE` this ran in seconds compared to minutes++
+
+```{r}
+all_mods <- ENMevaluate(
+  occs = occ_mod,
+  envs = preds_mod,
+  #bg = bg_mod, #can also leave this out and set 'n.bg = ##' instead
+  algorithm = 'maxnet',
+  partitions = 'randomkfold',
+  taxon.name = species,
+  # features as in Steen et al
+  tune.args = list(
+    fc = c("L", "LQ", "LQP", "H", "LQHP"),
+    rm = seq(1, 5, 0.5)
+  ),
+  parallel = TRUE
+)
+```
+
+## Visualize tuning results
+
+Look at omission rates and validation AUC
+
+```{r}
+evalplot.stats(
+  e = all_mods,
+  stats = c("auc.diff", "cbi.val", "or.10p"),
+  color = "fc",
+  x.var = "rm",
+  error.bars = FALSE
+  #dodge = 0.5
+)
+```
+
+# Model Selection
+
+Choose top model based on highest boyce index and lowest omission rate and AUC diff (to break ties)
+
+-   Idea, give the user the option to choose best model or most complex/simple model
+
+```{r}
+top_mod_args <- eval.results(all_mods) %>%
+  filter(cbi.val.avg == max(cbi.val.avg, na.rm = TRUE)) %>% 
+    filter(auc.diff.avg == max(auc.diff.avg, na.rm = TRUE)) %>% 
+  filter(or.10p.avg == min(or.10p.avg, na.rm = TRUE))
+
+# need an if/then if there are ties, just choose first one
+if(nrow(top_mod_args) > 1) {
+  top_mod_args <- top_mod_args[1,]
+}
+
+selected_mod <- eval.models(all_mods)[[top_mod_args$tune.args]]
+```
+
+Look at model coefficients and response curves
+
+```{r}
+# coefficients
+tibble::enframe(selected_mod$betas)
+
+# response curves
+plot(selected_mod, type = "cloglog")
+```
+
+# Model Predictions
+
+```{r}
+predicted_mod <- eval.predictions(all_mods)[[top_mod_args$tune.args]]
+
+tm_shape(predicted_mod) +
+  tm_raster(style = "cont", palette = "inferno")
+```
+
+```{r}
+dev.off()
+plot(predicted_mod)
+
+# visualize training sets (this really only matter with spatial blocks)
+points(eval.bg(all_mods), pch = 3, col = eval.bg.grp(all_mods), cex = 0.5)
+points(eval.occs(all_mods), pch = 21, bg = eval.occs.grp(all_mods))
+```
+
+Or interactive:
+
+```{r}
+tm_shape(predicted_mod) +
+  tm_raster(style = "cont", palette = "plasma")
+```
+
+### Compare the most simple and complex models
+
+```{r}
+# Finally, let's cut the plotting area into two rows to visualize the predictions 
+# side-by-side.
+par(mfrow=c(2,1), mar=c(2,1,2,0))
+# The simplest model: linear features only and high regularization.
+plot(eval.predictions(all_mods)[['fc.L_rm.5']], #ylim = c(-30,20), xlim = c(-90,-30), 
+     legend = FALSE, main = 'L_5 prediction')
+# The most complex model: linear, quadratic, and hinge features with low regularization
+plot(eval.predictions(all_mods)[['fc.LQHP_rm.1']], #ylim = c(-30,20), xlim = c(-90,-30), 
+     legend = FALSE, main = 'LQHP_1 prediction')
+```
+
+# Null Models
+
+Allow us to calculate significance and effect size of model metrics by comparing it to null models built with random data
+
+Calculate null models using settings of best model
+
+*Note, parallel = TRUE does not work on this for some reason, took 4 minutes without. GitHub says working on this for version 2.0.5.*
+
+```{r}
+null_mod <- ENMnulls(
+  e = all_mods,
+  mod.settings = list(fc = as.character(top_mod_args$fc), rm = as.numeric(top_mod_args$rm)),
+  no.iter = 100,
+  parallel = TRUE
+)
+```
+
+Plot results and view p-values
+
+Here hoping for empirical eval metrics that are significantly better than a null model.
+
+```{r}
+evalplot.nulls(null_mod, stats = c("or.10p", "auc.val", "cbi.val"), plot.type = "histogram")
+```
+
+```{r}
+null.emp.results(null_mod)
+```
+
+# Compile Metadata
+
+```{r}
+# Generate a rangeModelMetadata object based on the information stored in the 
+# ENMevaluate object.
+rmm <- eval.rmm(all_mods)
+```
+
+Create own output with metadata of interest:
+
+```{r}
+output_metadata <- tibble(
+  #variable_names = I(list(rmm$data$environment$variableNames)),
+  projection = rmm$data$environment$projection,
+  species = rmm$data$occurrence$taxon,
+  sample_size = rmm$data$occurrence$presenceSampleSize,
+  background_sample_size = rmm$data$occurrence$backgroundSampleSize,
+  prediction_units = "suitability (cloglog transformation)",
+  min_prediction = raster::cellStats(predicted_mod, min),
+  max_prediction = raster::cellStats(predicted_mod, max),
+  selection_rules = "highest correlation Boyce index with lowest 10 percentile omission rate and AUC diff to break ties"
+) %>% 
+  bind_cols(top_mod_args) %>% 
+  mutate_all(as.character) %>% 
+  pivot_longer(cols = everything())
+```
+
+### Response Curve Data
+
+Retrieved raw code from: <https://rdrr.io/github/mrmaxent/maxnet/src/R/response.plot.R>
+
+```{r}
+# function to pull rc data for each variable
+get_rc <- function(v,
+                   mod,
+                   levels = unlist(mod$levels[v]),
+                   mm = mod$samplemeans,
+                   min = mod$varmin[v],
+                   max = mod$varmax[v]) {
+  nr <- if (is.null(levels)) {
+    100
+  } else {
+    length(levels)
+  }
+  
+  m <- data.frame(matrix(mm, nr, length(mm), byrow = T))
+  colnames(m) <- names(mm)
+  
+  m[, v] <- if (!is.null(levels)) {
+    levels
+  } else {
+    seq(min - 0.1 * (max - min), max + 0.1 * (max - min), length = nr)
+  }
+  
+  preds <- predict(mod, m, type = "cloglog")
+  
+  output <- tibble(preds = preds[, 1], val = m[, v]) %>%
+    rename("preds_{v}" := preds, !!sym(v) := val)
+  
+  return(output)
+  
+}
+
+# create df for all variables
+response_curves <- map(names(selected_mod$samplemeans), ~get_rc(v = .x, mod = selected_mod)) %>% 
+  bind_cols()
+```
+
+### Variable Importance
+
+```{r}
+# create SWD object
+swd_obj <- prepareSWD(species = species,
+                   p = occ_mod,
+                   a = bg_mod,
+                   env = terra::rast(preds_mod))
+
+
+# Use cross validation
+folds <-  randomFolds(swd_obj,
+                    k = 10,
+                    only_presence = TRUE)
+# create SDMmodel
+SDM_mod <- train(method = "Maxnet",
+               data = swd_obj,
+               fc = tolower(as.character(top_mod_args$fc)),
+               reg = as.numeric(top_mod_args$rm),
+               folds = folds)
+
+# Compute variable importance
+vi <- varImp(SDM_mod,
+             permut = 10)
+
+```
+
+## Save final output
+
+```{r}
+final_output <- list(
+  metadata = output_metadata,
+  tuning_results = eval.results(all_mods),
+  tuning_results_plot = evalplot.stats(
+    e = all_mods,
+    stats = c("auc.diff", "cbi.val", "or.10p"),
+    color = "fc",
+    x.var = "rm",
+    error.bars = FALSE),
+  prediction_map = predicted_mod,
+  selected_mod = selected_mod,
+  response_curves = response_curves,
+  variable_importance = vi,
+  null_models = null.emp.results(null_mod),
+  null_model_plots = evalplot.nulls(null_mod, stats = c("or.10p", "auc.val", "cbi.val"), plot.type = "histogram")
+)
+```
