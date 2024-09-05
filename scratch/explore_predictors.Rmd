@@ -184,3 +184,16 @@ tm_shape(natural_habitat) +
   tm_shape(rwbl_cores) + 
   tm_polygons(col = "blue")
 ```
+
+# Explore Land Cover
+
+```{r}
+lc <- terra::rast("data/input_raw/landcover_mchale/FC_landcover.tif")
+
+#plotting takes too long
+# qtm(lc)
+
+# categories and freq
+terra::freq(lc)
+
+```
