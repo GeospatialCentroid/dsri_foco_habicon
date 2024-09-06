@@ -23,7 +23,7 @@ path_dist <- c("data/input_raw/Hydrology/Hydrology.shp",
                "data/input_raw/Buildings/Buildings.shp",
                "data/nature_in_the_city/gis/ft_collins_GMA_boundary.shp")
 path_nodist <- c("data/input_raw/Impervious_Surface/impervious_surfaces_fort_collins_2015.shp",
-                 "/Users/mikkojimenez/Library/CloudStorage/OneDrive-Colostate/DSRI_FOCO_Habicon/data/input_raw/Natural_Habitat/bc8f7f07-7560-4191-aa2e-8f274a1c29e7202046-1-133oxp5.v8wfi.shp",
+                 "data/input_raw/Natural_Habitat/bc8f7f07-7560-4191-aa2e-8f274a1c29e7202046-1-133oxp5.v8wfi.shp",
                  "data/input_raw/Buildings/Buildings.shp",
                  "data/input_raw/Green_Space/nic_green_space_2015.shp")
 

@@ -1,6 +1,6 @@
 ---
 title: "tif_sep"
-author: "Mikko Jimenez, Josh Carrell, and Caitlin Mothes"
+author: "Mikko Jimenez and Caitlin Mothes"
 date: "'r Sys.Date()'"
 output: html_notebook
 ---
@@ -29,12 +29,11 @@ tif_sep <- function(raster_path, lookup_table, output_dir) {
 # read in McHale raster
 raster_data <- rast(raster_path)
 
-# create list to store shit
+# create list to store values
 layer_list <- list()
 
 # get unique values
-# remove NAs - sweet jesus this 
-unique_values <- unique(na.omit(values(raster_data)))
+unique_values <- terra::freq(raster_data)$value
 
 # loop through each unique value and create separate layers
 for (value in unique_values) {

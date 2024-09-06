@@ -1,10 +1,10 @@
 ---
-title: "Indicator Metatdata"
+title: "Variable Metatdata"
 output: github_document
 ---
 
 |                                                     |                                           |                                   |                                                                                                                             |                           |                                |
-|--------------|------------|------------|-----------------------|------------------------|-------------------------|
+|-----------------------------------------------------|-------------------------------------------|-----------------------------------|-----------------------------------------------------------------------------------------------------------------------------|---------------------------|--------------------------------|
 | Indicator                                           | Dataset used                              | Processing script (if applicable) | Indicator Description                                                                                                       | Time frame / last updated | Spatial resolution (if raster) |
 | Impervious surface within x distance                | impervious_surfaces_fort_collins_2015.shp | src/process_preds.R               | <https://fcgov.hub.arcgis.com/datasets/hydrology-polygon>                                                                   |                           |                                |
 | Land use type                                       | ?                                         | src/process_preds.R               |                                                                                                                             |                           |                                |
