@@ -197,3 +197,38 @@ lc <- terra::rast("data/input_raw/landcover_mchale/FC_landcover.tif")
 terra::freq(lc)
 
 ```
+
+Land cover classes from metadata:
+
+Tree Canopy
+
+Grass/Shrubs
+
+Bare Soil
+
+Water
+
+Buildings
+
+Roads/Railroads
+
+Other Paved
+
+### NLCD land cover
+
+```{r}
+nlcd <- terra::rast("data/input_raw/nlcd_tcc_CONUS_2021_v2021-4/nlcd_tcc_conus_2021_v2021-4.tif") %>% 
+  terra::crop(st_transform(foco_boundary, crs = crs(.)), mask = TRUE)
+
+tmap_mode("view")
+
+qtm(nlcd)
+
+terra::values(nlcd) %>% unique()
+
+terra::freq(nlcd) # not working...
+
+
+```
+
+## 
