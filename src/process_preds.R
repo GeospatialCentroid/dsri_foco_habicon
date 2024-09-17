@@ -1,19 +1,19 @@
 #' process_preds
 #'
 #' This function reads in a list of spatial predictor file paths and processes them for a niche
-#' model. Specifically, it reads in raw files, sets their crs and extent to a define 'template'
+#' model. Specifically, it reads in raw files, sets their crs and extent to a define 'aoi'
 #' file, and rasterizes the file if necessary.
 #' 
 #' @param input_path File pathway to the raw predictor spatial file
-#' @param template_path File pathway to the 'template' file that will be used to standardize crs and ext
+#' @param aoi_path File pathway to the 'aoi' file that will be used to standardize crs and ext
 #' @param resolution Desired resolution for processed raster file output
 #' @param distance Whether to calculate output as a 'distance to' metric (TRUE) or not (FALSE; default)
 #' @param save Whether to save (TRUE) the resulting dataframe (as .tif) or not (FALSE)
 #' @param output_path If `save = TRUE`, the file path to save the dataframe.
 #'
-#' @return A spatraster with crs and ext that is consistent with template and res that is set to desired resolution
+#' @return A spatraster with crs and ext that is consistent with aoi and res that is set to desired resolution
 
-process_preds <- function(predictor_path, template, resolution, distance=FALSE, save, output_path) {
+process_preds <- function(predictor_path, aoi, resolution, distance=FALSE, save, output_path) {
   
   # Initialize variables to hold the processed objects
   rast_shapefile <- NULL
@@ -24,17 +24,17 @@ process_preds <- function(predictor_path, template, resolution, distance=FALSE, 
     # Read in shapefile
     shapefile <- st_read(predictor_path)
     
-    # Set CRS to match the template
-    shapefile <- st_transform(shapefile, crs = crs(template))
+    # Set CRS to match the aoi
+    shapefile <- st_transform(shapefile, crs = crs(aoi))
     
-    # Set extent to match the template (crop if necessary)
-    shapefile <- st_crop(shapefile, st_bbox(template))
+    # Set extent to match the aoi (crop if necessary)
+    shapefile <- st_crop(shapefile, st_bbox(aoi))
     
     ## Rasterize the shapefile
-    # Create an empty raster template with the specified resolution
-    raster_template <- rast(ext(template), resolution = resolution)
+    # Create an empty raster aoi with the specified resolution
+    raster_aoi <- rast(ext(aoi), resolution = resolution)
     # Rasterize shapefile 
-    rast_shapefile <- terra::rasterize(shapefile, raster_template, fun = mean)
+    rast_shapefile <- terra::rasterize(shapefile, raster_aoi, fun = mean)
     # Set CRS to match the shapefile
     crs(rast_shapefile) <- st_crs(shapefile)$proj4string
     
@@ -52,23 +52,23 @@ process_preds <- function(predictor_path, template, resolution, distance=FALSE, 
     
     
   } else if (grepl("\\.tif$", predictor_path, ignore.case = TRUE)) {
-    # Read in raster and template files
+    # Read in raster and aoi files
     raster_file <- rast(predictor_path)
     
-    # Set template temporarily to raster CRS - so we don't need to project full, large rasters
-    shapefile_temp <- st_transform(template, crs = crs(raster_file))
+    # Set aoi temporarily to raster CRS - so we don't need to project full, large rasters
+    shapefile_temp <- st_transform(aoi, crs = crs(raster_file))
     
     # crop to the temp shapefile
     raster_file <- crop(raster_file, shapefile_temp)
     
-    # Convert the template to a raster with the same extent and resolution
-    template_raster <- rast(ext(template), resolution = resolution, crs = crs(template))
+    # Convert the aoi to a raster with the same extent and resolution
+    aoi_raster <- rast(ext(aoi), resolution = resolution, crs = crs(aoi))
     
-    # Project cropped raster into template CRS
-    raster_file <- project(raster_file, template_raster)
+    # Project cropped raster into aoi CRS
+    raster_file <- project(raster_file, aoi_raster)
     
-    # Align the raster to the template's resolution and extent
-    # raster_file <- resample(raster_file, template_raster, method = "bilinear")
+    # Align the raster to the aoi's resolution and extent
+    # raster_file <- resample(raster_file, aoi_raster, method = "bilinear")
     
     if(distance == TRUE) {
       raster_file <- terra::distance(raster_file)
