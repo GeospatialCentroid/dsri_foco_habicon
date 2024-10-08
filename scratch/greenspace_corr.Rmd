@@ -1,0 +1,64 @@
+---
+title: "greenspace_corr"
+author: "Mikko Jimenez and Caitlin Moathes"
+date: "2024-10-08"
+output: html_document
+---
+
+## This script explores correlation between greenspace layers
+
+## set up environment
+```{r}
+source("setup.R") 
+
+library(raster)
+
+# read in raster to be separated 
+greenspace_stack <- rast("data/input_processed/greenspace_stack.tif")
+
+# Extract pixel values from the raster stack and convert to a data frame and change all Nas to 0
+raster_values <- as.data.frame(terra::values(greenspace_stack))
+raster_values[is.na(raster_values)] <- 0
+
+# Calculate Pearson correlation matrix
+cor_matrix <- cor(raster_values, method = "pearson", use = "complete.obs")
+
+# Convert the correlation matrix to a long format for ggplot2
+cor_melt <- melt(cor_matrix)
+
+# Rename the specific value in cor_melt
+cor_melt$Var1[cor_melt$Var1 == "bc8f7f07-7560-4191-aa2e-8f274a1c29e7202046-1-133oxp5.v8wfi"] <- "natural_habitat"
+cor_melt$Var2[cor_melt$Var2 == "bc8f7f07-7560-4191-aa2e-8f274a1c29e7202046-1-133oxp5.v8wfi"] <- "natural_habitat"
+
+# Plot the correlation matrix as a heatmap
+nodist_plot<-ggplot(cor_melt, aes(Var1, Var2, fill = value)) +
+  geom_tile() +
+  scale_fill_gradient2(low = "blue", high = "red", mid = "white", 
+                       midpoint = 0, limit = c(-1, 1), space = "Lab", 
+                       name = "Pearson\nCorrelation") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  labs(x = "Rasters", y = "Rasters", title = "Correlation Matrix of Raster Layers")
+
+# try this but with dist and using layerCor
+greenspace_stack_dist <- rast("data/input_processed/greenspace_stack_dist.tif")
+cor_matrix_dist<-layerCor(greenspace_stack_dist, "pearson")
+cor_matrix_dist <- cor_matrix_dist$correlation
+
+# Convert the correlation matrix into a data frame (long format)
+cor_melt_dist <- melt(cor_matrix_dist)
+
+# Rename the specific value in cor_melt_dist
+cor_melt_dist$Var1[cor_melt_dist$Var1 == "bc8f7f07-7560-4191-aa2e-8f274a1c29e7202046-1-133oxp5.v8wfi"] <- "natural_habitat"
+cor_melt_dist$Var2[cor_melt_dist$Var2 == "bc8f7f07-7560-4191-aa2e-8f274a1c29e7202046-1-133oxp5.v8wfi"] <- "natural_habitat"
+
+# Plot the correlation matrix as a heatmap
+dist_plot <- ggplot(cor_melt_dist, aes(Var1, Var2, fill = value)) +
+  geom_tile() +
+  scale_fill_gradient2(low = "blue", high = "red", mid = "white", 
+                       midpoint = 0, limit = c(-1, 1), space = "Lab", 
+                       name = "Pearson\nCorrelation") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  labs(x = "Rasters", y = "Rasters", title = "Correlation Matrix of Raster Layers")
+```

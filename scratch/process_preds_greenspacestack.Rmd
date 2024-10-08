@@ -1,0 +1,150 @@
+---
+title: "Code to process predictors for urban niche model"
+author: "Mikko Jimenez and Caitlin Mothes"
+date: "'r Sys.Date()'"
+output: html_notebook
+---
+
+## Process predictors
+
+As part of a broader pipeline for running a niche model in urban settings, this script is designed to provide a flexible process for reading in predictor variables, setting them to a consistent coordinate reference system, and cropping them to an extent of interest. 
+
+Note: it is currently unclear if predictors will be expected to be downloaded prior to running this script or if we will be pulling predictors directly from an API. I've written code for each situation below. 
+
+## set up environment
+```{r}
+source("setup.R") 
+
+# read in spatial layer that includes full extent of interest, in this case a boundary .shp
+aoi <- read_sf("data/nature_in_the_city/gis/ft_collins_GMA_boundary.shp")
+
+# list of paths to predictors (shapefiles, .tifs, etc.)
+path_nodist <- c()
+path_dist <- c("data/input_raw/landcover_mchale/FC_landcover_sep/lc_TreeCanopy.tif",
+                 "data/input_raw/landcover_mchale/FC_landcover_sep/lc_Grass_Shrubs.tif",
+                 "data/input_raw/Natural_Habitat/bc8f7f07-7560-4191-aa2e-8f274a1c29e7202046-1-133oxp5.v8wfi.shp",
+                 "data/input_raw/Green_Space/nic_green_space_2015.shp")
+
+# set desired resolution
+resolution <- 100
+
+# set output directory
+output_path <- "data/input_processed"
+```
+
+## write function that reads in predictors and matches CRS and extent to the aoi
+```{r}
+# write function that reads in predictors and matches CRS and extent to the aoi
+process_preds <- function(predictor_path, aoi, resolution, distance=FALSE, save, output_path) {
+  
+  # Initialize variables to hold the processed objects
+  rast_shapefile <- NULL
+  raster_file <- NULL
+  output_object <- NULL
+
+  if (grepl("\\.shp$", predictor_path, ignore.case = TRUE)) {
+    # Read in shapefile
+    shapefile <- st_read(predictor_path)
+
+    # Set CRS to match the aoi
+    shapefile <- st_transform(shapefile, crs = crs(aoi))
+
+    # Set extent to match the aoi (crop if necessary)
+    shapefile <- st_crop(shapefile, st_bbox(aoi))
+    
+    ## Rasterize the shapefile
+    # Create an empty raster aoi with the specified resolution
+    raster_aoi <- rast(ext(aoi), resolution = resolution)
+    # Rasterize shapefile 
+    rast_shapefile <- terra::rasterize(shapefile, raster_aoi, fun = mean)
+    # Set CRS to match the shapefile
+    crs(rast_shapefile) <- st_crs(shapefile)$proj4string
+    
+    if(distance == TRUE) {
+      rast_shapefile <- terra::distance(rast_shapefile)
+    }
+
+    # Extract filename without extension for naming 
+    file_name <- tools::file_path_sans_ext(basename(predictor_path))
+
+    # Store the processed object with the filename
+    output_object <- rast_shapefile
+    
+  } else if (grepl("\\.tif$", predictor_path, ignore.case = TRUE)) {
+    # Read in raster and aoi files
+    raster_file <- rast(predictor_path)
+
+    # Set aoi temporarily to raster CRS - so we don't need to project full, large rasters
+    shapefile_temp <- st_transform(aoi, crs = crs(raster_file))
+    
+    # crop to the temp shapefile
+    raster_file <- crop(raster_file, shapefile_temp)
+    
+    # Convert the aoi to a raster with the same extent and resolution
+    aoi_raster <- rast(ext(aoi), resolution = resolution, crs = crs(aoi))
+  
+    # Project cropped raster into aoi CRS
+    raster_file <- project(raster_file, aoi_raster)
+    
+    # Align the raster to the aoi's resolution and extent
+    # raster_file <- resample(raster_file, aoi_raster, method = "bilinear")
+    
+    if(distance == TRUE) {
+      raster_file <- terra::distance(raster_file)
+    }
+    
+    # Extract filename without extension for naming
+    file_name <- tools::file_path_sans_ext(basename(predictor_path))
+    
+    # Store the processed object with the filename
+    output_object <- raster_file
+    
+  } else {
+    stop("Unsupported file type.")
+  }
+  
+  # Save the processed objects to the specified directory if 'save' is TRUE
+  if (save) {
+    if (!dir.exists(output_path)) {
+      dir.create(output_path, recursive = TRUE)
+    }
+    
+    if (!is.null(rast_shapefile)) {
+      # Write raster file
+      writeRaster(rast_shapefile, filename = file.path(output_path, paste0(file_name, ".tif")), overwrite = TRUE)
+    }
+    
+    if (!is.null(raster_file)) {
+      # Write raster file
+      writeRaster(raster_file, filename = file.path(output_path, paste0(file_name, ".tif")), overwrite = TRUE)
+    
+    }
+  }
+  
+    # Assign the output_object to the global environment with the filename as the variable name
+    #assign(file_name, output_object, envir = .GlobalEnv)
+    
+    # Return the processed object with the filename
+    return(output_object)
+} 
+```
+
+# process predictors in parallel 
+```{r}
+# process distance predictors
+pred_dist <- purrr::map(path_dist, process_preds, aoi, resolution, distance=TRUE, save=FALSE, output_path) %>% set_names(tools::file_path_sans_ext(basename(path_dist)))
+
+# process non distance predictors
+pred_nodist <- purrr::map(path_nodist, process_preds, aoi, resolution, distance=FALSE, save=FALSE, output_path) %>% set_names(tools::file_path_sans_ext(basename(path_nodist)))
+```
+# stack all the rasters and save
+```{r}
+# stack rasters
+combined_rast <- terra::rast(pred_dist)
+
+# Save the predictor raster stack
+writeRaster(combined_rast, filename = file.path(output_path, "greenspace_stack_dist.tif"), overwrite = TRUE)
+```
+
+
+
