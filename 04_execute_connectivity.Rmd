@@ -1,0 +1,58 @@
+# Run Connectivity Models in Julia
+
+This module runs Omniscape in Julia. Omniscape is a newer model, based upon Circuitscape but better designed for spatially continuous input surfaces like habitat suitability models.
+
+Omniscape User Guide: <https://docs.circuitscape.org/Omniscape.jl/latest/usage/#User-Guide> and GitHub: <https://github.com/Circuitscape/Omniscape.jl>
+
+This section is run directly from Julia, as there are current incompatibilities with the newest version of Julia (1.11) and the `JuliaCall` R package. Future versions will hopefully be able to execute directly from this .Rmd. In the future, instructions for running directly from R can be found here: <https://github.com/Circuitscape/Circuitscape.jl/issues/381>.
+
+## Install/Setup Julia
+
+1.  Install Julia: <https://julialang.org/downloads/>
+
+2.  Install Omniscape:
+
+    ```         
+    julia> using Pkg
+    julia> Pkg.add("Omniscape")
+    ```
+
+    *Note: On my PC I had to add [this environmental variable](https://discourse.julialang.org/t/cannot-instantiate-env-in-julia-1-10-adwaita-icon-theme-jll-git-tree-hash-error-anyone-else/108105/5) in order for Circuitscape/Omniscape to install correctly:* JULIA_PKG_IGNORE_HASHES=true
+
+3.  Check that all tests are passing:
+
+    ```         
+    julia> Pkg.test("Omniscape")
+    ```
+
+## Run Omniscape
+
+Set number of threads to use **(from Command Prompt)**
+
+```         
+julia -t 4
+```
+
+Run Omniscape from the .ini file
+
+```         
+using Omniscape
+run_omniscape("Desktop/dsri_foco_habicon/ini/testing.ini")
+```
+
+## Explore Outputs
+
+```{r}
+cum_curr_map <- rast("data/output_connectivity_1/cum_currmap.tif")
+
+norm_cum_currmap <- rast("data/output_connectivity_1/normalized_cum_currmap.tif")
+```
+
+```{r}
+tmap_mode("view")
+
+tm_shape(cum_curr_map) +
+  tm_raster(style = "cont") +
+  tm_shape(norm_cum_currmap) +
+  tm_raster(style = "cont")
+```
