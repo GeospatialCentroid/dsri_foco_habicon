@@ -26,7 +26,7 @@ files <- c(
   "data/input_raw/Natural_Habitat/bc8f7f07-7560-4191-aa2e-8f274a1c29e7202046-1-133oxp5.v8wfi.shp"
 )
 
-preds <- purrr::map(files, ~process_preds(.x, template = aoi, resolution = 500, distance = TRUE, save = FALSE))
+preds <- purrr::map(files, ~process_preds(.x, aoi = aoi, resolution = 500, distance = TRUE, save = FALSE))
 
 preds_stack <- terra::rast(preds)
 ```
@@ -81,10 +81,17 @@ end-start
 ```{r}
 tmap_mode("view")
 
+# read in rasters
+maps <- purrr::map(list.files("data/output_sdm/", pattern = ".tif", full.names = TRUE), terra::rast)
+
+# change file names
+for (i in 1:length(maps)) {
+  names(maps[[i]]) <- terra::sources(maps[[i]]) %>% str_extract(pattern = "(?<=output_sdm/).*?(?=.tif)")
+}
 
 purrr::map(
-  species_SDMs,
-  ~ tm_shape(.x$prediction_map) +
-    tm_raster(style = "cont", palette = "inferno", title = .x$metadata[2,2])
+  maps,
+  ~ tm_shape(.x) +
+    tm_raster(style = "cont", palette = "inferno")
 )
 ```
