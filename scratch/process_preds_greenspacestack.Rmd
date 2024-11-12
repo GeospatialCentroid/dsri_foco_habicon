@@ -1,6 +1,6 @@
 ---
 title: "Code to process predictors for urban niche model"
-author: "Mikko Jimenez, Josh Carrell, and Caitlin Mothes"
+author: "Mikko Jimenez and Caitlin Mothes"
 date: "'r Sys.Date()'"
 output: html_notebook
 ---
@@ -19,24 +19,14 @@ source("setup.R")
 aoi <- read_sf("data/nature_in_the_city/gis/ft_collins_GMA_boundary.shp")
 
 # list of paths to predictors (shapefiles, .tifs, etc.)
-path_perccov <- c("data/input_raw/Impervious_Surface/impervious_surfaces_fort_collins_2015.shp",
-                  "data/input_raw/Natural_Habitat/bc8f7f07-7560-4191-aa2e-8f274a1c29e7202046-1-133oxp5.v8wfi.shp",
-                  "data/input_raw/landcover_mchale/FC_landcover_sep/lc_TreeCanopy.tif",
-                  "data/input_raw/landcover_mchale/FC_landcover_sep/lc_Grass_Shrubs.tif",
-                  "data/input_raw/Green_Space/nic_green_space_2015.shp"
-                  )
-path_dist <- c("data/input_raw/Hydrology/Hydrology.shp",
-               "data/input_raw/Buildings/Buildings.shp")
-path_nodist <- c("data/input_raw/Traffic-Density/foCO_traffic.tif")
+path_nodist <- c()
+path_dist <- c("data/input_raw/landcover_mchale/FC_landcover_sep/lc_TreeCanopy.tif",
+                 "data/input_raw/landcover_mchale/FC_landcover_sep/lc_Grass_Shrubs.tif",
+                 "data/input_raw/Natural_Habitat/bc8f7f07-7560-4191-aa2e-8f274a1c29e7202046-1-133oxp5.v8wfi.shp",
+                 "data/input_raw/Green_Space/nic_green_space_2015.shp")
 
-# we're in NAD83, so res and buffer are in meters
-# create buffered_aoi
-# add a dist argument
-buffered_aoi <- st_buffer(aoi, dist = 500)
 # set desired resolution
 resolution <- 100
-# set a buffer
-buffer <- 3
 
 # set output directory
 output_path <- "data/input_processed"
@@ -45,23 +35,20 @@ output_path <- "data/input_processed"
 ## write function that reads in predictors and matches CRS and extent to the aoi
 ```{r}
 # write function that reads in predictors and matches CRS and extent to the aoi
-process_preds <- function(predictor_path, aoi, resolution, type, buffer, save, output_path) {
-  
-  # aoi buffer idea
-  #buffered_aoi <- st_buffer(aoi, dist = dist)
+process_preds <- function(predictor_path, aoi, resolution, distance=FALSE, save, output_path) {
   
   # Initialize variables to hold the processed objects
   rast_shapefile <- NULL
   raster_file <- NULL
   output_object <- NULL
-  
+
   if (grepl("\\.shp$", predictor_path, ignore.case = TRUE)) {
     # Read in shapefile
     shapefile <- st_read(predictor_path)
-    
+
     # Set CRS to match the aoi
     shapefile <- st_transform(shapefile, crs = crs(aoi))
-    
+
     # Set extent to match the aoi (crop if necessary)
     shapefile <- st_crop(shapefile, st_bbox(aoi))
     
@@ -73,30 +60,20 @@ process_preds <- function(predictor_path, aoi, resolution, type, buffer, save, o
     # Set CRS to match the shapefile
     crs(rast_shapefile) <- st_crs(shapefile)$proj4string
     
-    # Perform calculations based on 'type' argument
-    if (type == "dist") {
+    if(distance == TRUE) {
       rast_shapefile <- terra::distance(rast_shapefile)
-      
-    } else if (type == "perccov") {
-      if (is.null(buffer)) {
-        stop("Buffer must be specified when calculating percent cover.")
-      }
-      # Calculate percent cover within the buffer distance
-      rast_shapefile <- terra::focal(rast_shapefile, w = buffer, fun = function(x) mean(!is.na(x), na.rm = TRUE) * 100)
     }
-    
+
     # Extract filename without extension for naming 
     file_name <- tools::file_path_sans_ext(basename(predictor_path))
-    
+
     # Store the processed object with the filename
     output_object <- rast_shapefile
-    
-    names(output_object) <- file_name
     
   } else if (grepl("\\.tif$", predictor_path, ignore.case = TRUE)) {
     # Read in raster and aoi files
     raster_file <- rast(predictor_path)
-    
+
     # Set aoi temporarily to raster CRS - so we don't need to project full, large rasters
     shapefile_temp <- st_transform(aoi, crs = crs(raster_file))
     
@@ -105,20 +82,15 @@ process_preds <- function(predictor_path, aoi, resolution, type, buffer, save, o
     
     # Convert the aoi to a raster with the same extent and resolution
     aoi_raster <- rast(ext(aoi), resolution = resolution, crs = crs(aoi))
-    
+  
     # Project cropped raster into aoi CRS
     raster_file <- project(raster_file, aoi_raster)
     
-    # Perform calculations based on 'type' argument
-    if (type == "dist") {
+    # Align the raster to the aoi's resolution and extent
+    # raster_file <- resample(raster_file, aoi_raster, method = "bilinear")
+    
+    if(distance == TRUE) {
       raster_file <- terra::distance(raster_file)
-      
-    } else if (type == "perccov") {
-      if (is.null(buffer)) {
-        stop("Buffer must be specified when calculating percent cover.")
-      }
-      # Calculate percent cover within the buffer distance
-      raster_file <- terra::focal(raster_file, w = buffer, fun = function(x) mean(!is.na(x), na.rm = TRUE) * 100)
     }
     
     # Extract filename without extension for naming
@@ -126,8 +98,6 @@ process_preds <- function(predictor_path, aoi, resolution, type, buffer, save, o
     
     # Store the processed object with the filename
     output_object <- raster_file
-    
-    names(output_object) <- file_name
     
   } else {
     stop("Unsupported file type.")
@@ -147,33 +117,33 @@ process_preds <- function(predictor_path, aoi, resolution, type, buffer, save, o
     if (!is.null(raster_file)) {
       # Write raster file
       writeRaster(raster_file, filename = file.path(output_path, paste0(file_name, ".tif")), overwrite = TRUE)
+    
     }
   }
   
-  # Return the processed object with the filename
-  return(output_object)
-}
+    # Assign the output_object to the global environment with the filename as the variable name
+    #assign(file_name, output_object, envir = .GlobalEnv)
+    
+    # Return the processed object with the filename
+    return(output_object)
+} 
 ```
 
 # process predictors in parallel 
 ```{r}
-# process perccov predictors
-pred_perccov <- purrr::map(path_perccov, process_preds, aoi, resolution, type="perccov", buffer, save=FALSE, output_path) %>% set_names(tools::file_path_sans_ext(basename(path_perccov)))
-
 # process distance predictors
-pred_dist <- purrr::map(path_dist, process_preds, aoi, resolution, type="dist", buffer, save=FALSE, output_path) %>% set_names(tools::file_path_sans_ext(basename(path_dist)))
+pred_dist <- purrr::map(path_dist, process_preds, aoi, resolution, distance=TRUE, save=FALSE, output_path) %>% set_names(tools::file_path_sans_ext(basename(path_dist)))
 
 # process non distance predictors
-pred_nodist <- purrr::map(path_nodist, process_preds, aoi, resolution, type="nodist", buffer, save=FALSE, output_path) %>% set_names(tools::file_path_sans_ext(basename(path_nodist)))
+pred_nodist <- purrr::map(path_nodist, process_preds, aoi, resolution, distance=FALSE, save=FALSE, output_path) %>% set_names(tools::file_path_sans_ext(basename(path_nodist)))
 ```
 # stack all the rasters and save
 ```{r}
 # stack rasters
-combined_rast <- terra::rast(c(pred_perccov, pred_dist, pred_nodist))
-plot(combined_rast)
+combined_rast <- terra::rast(pred_dist)
 
 # Save the predictor raster stack
-writeRaster(combined_rast, filename = file.path(output_path, "pred_stack.tif"), overwrite = TRUE)
+writeRaster(combined_rast, filename = file.path(output_path, "greenspace_stack_dist.tif"), overwrite = TRUE)
 ```
 
 
