@@ -45,7 +45,7 @@ output_path <- "data/input_processed"
 ## write function that reads in predictors and matches CRS and extent to the aoi
 ```{r}
 # write function that reads in predictors and matches CRS and extent to the aoi
-process_preds <- function(predictor_path, aoi, resolution, type, buffer, save, output_path) {
+process_preds <- function(input_path, aoi_path, resolution, type, buffer, save, output_path) {
   
   # aoi buffer idea
   #buffered_aoi <- st_buffer(aoi, dist = dist)

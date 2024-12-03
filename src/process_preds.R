@@ -7,13 +7,19 @@
 #' @param input_path File pathway to the raw predictor spatial file
 #' @param aoi_path File pathway to the 'aoi' file that will be used to standardize crs and ext
 #' @param resolution Desired resolution for processed raster file output
-#' @param distance Whether to calculate output as a 'distance to' metric (TRUE) or not (FALSE; default)
+#' @param type Categorical argument that specifies the landscape metric calculation ("perccov" = percent cover;
+#' "dist" = distance to (m); "nodist" = raw, rasterized cover)
+#' @param buffer Buffer distance (m) of percent cover calculation if type="perccov"
 #' @param save Whether to save (TRUE) the resulting dataframe (as .tif) or not (FALSE)
 #' @param output_path If `save = TRUE`, the file path to save the dataframe.
 #'
 #' @return A spatraster with crs and ext that is consistent with aoi and res that is set to desired resolution
 
-process_preds <- function(predictor_path, aoi, resolution, distance=FALSE, save, output_path) {
+# write function that reads in predictors and matches CRS and extent to the aoi
+process_preds <- function(predictor_path, aoi, resolution, type, buffer, save, output_path) {
+  
+  # aoi buffer idea
+  #buffered_aoi <- st_buffer(aoi, dist = dist)
   
   # Initialize variables to hold the processed objects
   rast_shapefile <- NULL
@@ -38,8 +44,16 @@ process_preds <- function(predictor_path, aoi, resolution, distance=FALSE, save,
     # Set CRS to match the shapefile
     crs(rast_shapefile) <- st_crs(shapefile)$proj4string
     
-    if(distance == TRUE) {
+    # Perform calculations based on 'type' argument
+    if (type == "dist") {
       rast_shapefile <- terra::distance(rast_shapefile)
+      
+    } else if (type == "perccov") {
+      if (is.null(buffer)) {
+        stop("Buffer must be specified when calculating percent cover.")
+      }
+      # Calculate percent cover within the buffer distance
+      rast_shapefile <- terra::focal(rast_shapefile, w = buffer, fun = function(x) mean(!is.na(x), na.rm = TRUE) * 100)
     }
     
     # Extract filename without extension for naming 
@@ -49,7 +63,6 @@ process_preds <- function(predictor_path, aoi, resolution, distance=FALSE, save,
     output_object <- rast_shapefile
     
     names(output_object) <- file_name
-    
     
   } else if (grepl("\\.tif$", predictor_path, ignore.case = TRUE)) {
     # Read in raster and aoi files
@@ -67,11 +80,16 @@ process_preds <- function(predictor_path, aoi, resolution, distance=FALSE, save,
     # Project cropped raster into aoi CRS
     raster_file <- project(raster_file, aoi_raster)
     
-    # Align the raster to the aoi's resolution and extent
-    # raster_file <- resample(raster_file, aoi_raster, method = "bilinear")
-    
-    if(distance == TRUE) {
+    # Perform calculations based on 'type' argument
+    if (type == "dist") {
       raster_file <- terra::distance(raster_file)
+      
+    } else if (type == "perccov") {
+      if (is.null(buffer)) {
+        stop("Buffer must be specified when calculating percent cover.")
+      }
+      # Calculate percent cover within the buffer distance
+      raster_file <- terra::focal(raster_file, w = buffer, fun = function(x) mean(!is.na(x), na.rm = TRUE) * 100)
     }
     
     # Extract filename without extension for naming
@@ -81,7 +99,6 @@ process_preds <- function(predictor_path, aoi, resolution, distance=FALSE, save,
     output_object <- raster_file
     
     names(output_object) <- file_name
-    
     
   } else {
     stop("Unsupported file type.")
@@ -101,13 +118,9 @@ process_preds <- function(predictor_path, aoi, resolution, distance=FALSE, save,
     if (!is.null(raster_file)) {
       # Write raster file
       writeRaster(raster_file, filename = file.path(output_path, paste0(file_name, ".tif")), overwrite = TRUE)
-      
     }
   }
   
-  # Assign the output_object to the global environment with the filename as the variable name
-  #assign(file_name, output_object, envir = .GlobalEnv)
-  
   # Return the processed object with the filename
   return(output_object)
-} 
+}
