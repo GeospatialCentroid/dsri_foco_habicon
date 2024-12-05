@@ -1,0 +1,77 @@
+---
+title: "tif_sep"
+author: "Mikko Jimenez, Josh Carrell, and Caitlin Mothes"
+date: "'r Sys.Date()'"
+output: html_notebook
+---
+
+## Separate tif into different layers represented in one band
+
+## set up environment
+```{r}
+source("setup.R") 
+
+# read in raster to be separated 
+raster_path <- "data/input_raw/landcover_mchale/FC_landcover.tif"
+
+# write a lookup table that links landcover to the feature number in band
+lookup_table <- data.frame(
+  category_value = c(1, 2, 3, 4, 5, 6, 7),
+  land_cover = c("TreeCanopy", "Grass_Shrubs", "BareSoil", "Water", "Buildings", "Roads_Railroads", "OtherPaved")
+)
+
+# set output directory
+output_dir <- "data/input_raw/landcover_mchale/FC_landcover_sep/"
+```
+
+```{r}
+tif_sep <- function(raster_path, lookup_table, output_dir) {
+# read in McHale raster
+raster_data <- rast(raster_path)
+
+# create list to store values
+layer_list <- list()
+
+# get unique values
+unique_values <- terra::freq(raster_data)$value
+
+# loop through each unique value and create separate layers
+for (value in unique_values) {
+  # run check if the value exists in the lookup table
+  if (value %in% lookup_table$category_value) {
+    #  binary numeric raster for each category 
+    category_layer <- classify(raster_data == value, cbind(TRUE, 1), others = NA)
+    
+    # assign name to each layer based on lookup table
+    category_name <- paste0("lc_", lookup_table$land_cover[lookup_table$category_value == value])
+    
+    # Check if the length of the name is valid for the raster layer
+    print(paste("Category:", value, "Name:", category_name))  # Debugging output
+    
+    # Set the name of the layer using `names()` function
+    names(category_layer) <- category_name
+    
+    # Store the layer in the list
+    layer_list[[category_name]] <- category_layer
+  } else {
+    print(paste("Warning: No match found for value", value))  # Handle unexpected values
+  }
+}
+
+# Optionally, write each layer to a new file
+for (layer_name in names(layer_list)) {
+  # Ensure the output file path has the correct file extension (.tif)
+  output_path <- paste0(output_dir, "/", layer_name, ".tif")
+  
+  # Write each layer to a new file, specifying the output file path
+  writeRaster(layer_list[[layer_name]], filename = output_path, overwrite = TRUE)
+  
+  print(paste("Written:", output_path))  # Optional: Print to confirm the file was written
+  }
+}
+```
+
+```{r}
+tif_sep(raster_path, lookup_table, output_dir)
+```
+
