@@ -1,7 +1,7 @@
 ---
 title: "Process Predictors"
 author: "Mikko Jimenez and Caitlin Mothes"
-date: "'r Sys.Date()'"
+date: "`r Sys.Date()`"
 ---
 
 # Process environmental predictors

@@ -1,7 +1,7 @@
 ---
 title: "Process Occurrences"
 author: "Caitlin Mothes"
-date: "'r Sys.Date()'"
+date: "`r Sys.Date()`"
 ---
 
 # Process species occurrences
