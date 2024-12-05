@@ -1,4 +1,10 @@
-# Workflow to process species occurrences
+---
+title: "Process Occurrences"
+author: "Caitlin Mothes"
+date: "'r Sys.Date()'"
+---
+
+# Process species occurrences
 
 ## Set Up
 

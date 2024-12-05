@@ -1,3 +1,9 @@
+---
+title: "Run Suitability Models"
+author: "Caitlin Mothes"
+date: "'r Sys.Date()'"
+---
+
 # Run Habitat Suitability Models
 
 ## Setup
