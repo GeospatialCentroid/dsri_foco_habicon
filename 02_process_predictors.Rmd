@@ -6,9 +6,7 @@ date: "`r Sys.Date()`"
 
 # Process environmental predictors
 
-As part of a broader pipeline for running a niche model in urban settings, this script is designed to provide a flexible process for reading in predictor variables, setting them to a consistent coordinate reference system, and cropping them to an extent of interest.
-
-Note: it is currently unclear if predictors will be expected to be downloaded prior to running this script or if we will be pulling predictors directly from an API. I've written code for each situation below.
+As part of a broader pipeline for running a niche model in urban settings, this script is designed to provide a flexible process for reading in predictor variables, setting them to a consistent coordinate reference system, applying the desired processing analyses (if applicable) and cropping them to an extent of interest.
 
 ## Set up environment
 
@@ -47,123 +45,11 @@ buffer <- 3
 output_path <- "data/input_processed"
 ```
 
-## write function that reads in predictors and matches CRS and extent to the aoi
-
-```{r}
-# write function that reads in predictors and matches CRS and extent to the aoi
-process_preds <- function(input_path, aoi_path, resolution, type, buffer, save, output_path) {
-  
-  # aoi buffer idea
-  #buffered_aoi <- st_buffer(aoi, dist = dist)
-  
-  # Initialize variables to hold the processed objects
-  rast_shapefile <- NULL
-  raster_file <- NULL
-  output_object <- NULL
-  
-  if (grepl("\\.shp$", predictor_path, ignore.case = TRUE)) {
-    # Read in shapefile
-    shapefile <- st_read(predictor_path)
-    
-    # Set CRS to match the aoi
-    shapefile <- st_transform(shapefile, crs = crs(aoi))
-    
-    # Set extent to match the aoi (crop if necessary)
-    shapefile <- st_crop(shapefile, st_bbox(aoi))
-    
-    ## Rasterize the shapefile
-    # Create an empty raster aoi with the specified resolution
-    raster_aoi <- rast(ext(aoi), resolution = resolution)
-    # Rasterize shapefile 
-    rast_shapefile <- terra::rasterize(shapefile, raster_aoi, fun = mean)
-    # Set CRS to match the shapefile
-    crs(rast_shapefile) <- st_crs(shapefile)$proj4string
-    
-    # Perform calculations based on 'type' argument
-    if (type == "dist") {
-      rast_shapefile <- terra::distance(rast_shapefile)
-      
-    } else if (type == "perccov") {
-      if (is.null(buffer)) {
-        stop("Buffer must be specified when calculating percent cover.")
-      }
-      # Calculate percent cover within the buffer distance
-      rast_shapefile <- terra::focal(rast_shapefile, w = buffer, fun = function(x) mean(!is.na(x), na.rm = TRUE) * 100)
-    }
-    
-    # Extract filename without extension for naming 
-    file_name <- tools::file_path_sans_ext(basename(predictor_path))
-    
-    # Store the processed object with the filename
-    output_object <- rast_shapefile
-    
-    names(output_object) <- file_name
-    
-  } else if (grepl("\\.tif$", predictor_path, ignore.case = TRUE)) {
-    # Read in raster and aoi files
-    raster_file <- rast(predictor_path)
-    
-    # Set aoi temporarily to raster CRS - so we don't need to project full, large rasters
-    shapefile_temp <- st_transform(aoi, crs = crs(raster_file))
-    
-    # crop to the temp shapefile
-    raster_file <- crop(raster_file, shapefile_temp)
-    
-    # Convert the aoi to a raster with the same extent and resolution
-    aoi_raster <- rast(ext(aoi), resolution = resolution, crs = crs(aoi))
-    
-    # Project cropped raster into aoi CRS
-    raster_file <- project(raster_file, aoi_raster)
-    
-    # Perform calculations based on 'type' argument
-    if (type == "dist") {
-      raster_file <- terra::distance(raster_file)
-      
-    } else if (type == "perccov") {
-      if (is.null(buffer)) {
-        stop("Buffer must be specified when calculating percent cover.")
-      }
-      # Calculate percent cover within the buffer distance
-      raster_file <- terra::focal(raster_file, w = buffer, fun = function(x) mean(!is.na(x), na.rm = TRUE) * 100)
-    }
-    
-    # Extract filename without extension for naming
-    file_name <- tools::file_path_sans_ext(basename(predictor_path))
-    
-    # Store the processed object with the filename
-    output_object <- raster_file
-    
-    names(output_object) <- file_name
-    
-  } else {
-    stop("Unsupported file type.")
-  }
-  
-  # Save the processed objects to the specified directory if 'save' is TRUE
-  if (save) {
-    if (!dir.exists(output_path)) {
-      dir.create(output_path, recursive = TRUE)
-    }
-    
-    if (!is.null(rast_shapefile)) {
-      # Write raster file
-      writeRaster(rast_shapefile, filename = file.path(output_path, paste0(file_name, ".tif")), overwrite = TRUE)
-    }
-    
-    if (!is.null(raster_file)) {
-      # Write raster file
-      writeRaster(raster_file, filename = file.path(output_path, paste0(file_name, ".tif")), overwrite = TRUE)
-    }
-  }
-  
-  # Return the processed object with the filename
-  return(output_object)
-}
-```
-
 ## Execute `process_preds()` function for all variables
 
 ```{r}
+start <- Sys.time()
+
 # process traffic aadt separately
 pred_aadt <- process_preds(
   "data/input_raw/Traffic-Density/foCO_traffic.shp",
@@ -171,7 +57,8 @@ pred_aadt <- process_preds(
   resolution = 100,
   type = "raw",
   field = "aadt",
-  save = FALSE
+  save = TRUE,
+  output_path = output_path
 )
 
 # process perccov predictors
@@ -182,8 +69,9 @@ pred_perccov <- purrr::map(
   resolution,
   type = "perccov",
   buffer,
-  save = FALSE,
-  output_path
+  field = NULL,
+  save = TRUE,
+  output_path = output_path
 ) %>% set_names(tools::file_path_sans_ext(basename(path_perccov)))
 
 # process distance predictors
@@ -193,8 +81,8 @@ pred_dist <- purrr::map(
   aoi,
   resolution,
   type = "dist",
-  save = FALSE,
-  output_path
+  save = TRUE,
+  output_path = output_path
 ) %>% set_names(tools::file_path_sans_ext(basename(path_dist)))
 
 # process non distance predictors
@@ -202,11 +90,16 @@ pred_nodist <- purrr::map(
   path_nodist,
   process_preds,
   aoi,
-  resolution = 100,
+  resolution,
   type = "nodist",
-  save = FALSE,
-  output_path
+  save = TRUE,
+  output_path = output_path
 ) %>% set_names(tools::file_path_sans_ext(basename(path_nodist)))
+
+end <- Sys.time()
+
+
+end-start
 ```
 
 ## Stack and save all predictors
