@@ -23,18 +23,16 @@ occ <- read_csv("data/input_occ/final_model_occurrences.csv")# %>%
 # AOI
 aoi <- read_sf("data/ft_collins_GMA.shp")
 
-# list of paths to predictors (shapefiles, .tifs, etc.)
-files <- c(
-  "data/input_raw/Hydrology/Hydrology.shp",
-  "data/input_raw/Buildings/Buildings.shp",
-  "data/input_raw/Green_Space/nic_green_space_2015.shp",
-  "data/input_raw/Impervious_Surface/impervious_surfaces_fort_collins_2015.shp",
-  "data/input_raw/Natural_Habitat/bc8f7f07-7560-4191-aa2e-8f274a1c29e7202046-1-133oxp5.v8wfi.shp"
-)
+# read in stacked predictors
+preds_stack <- terra::rast("data/input_processed/pred_stack.tif")
 
-preds <- purrr::map(files, ~process_preds(.x, aoi = aoi, resolution = 500, distance = TRUE, save = FALSE))
+# crop to aoi and remove unwanted layers
+predictors <- preds_stack[[-1]] %>% 
+  terra::mask(aoi)
 
-preds_stack <- terra::rast(preds)
+# fix long name for natural habitat
+names(predictors[[2]]) <- "Natural_habitat"
+
 ```
 
 ### Convert occ coords to CRS of predictors
@@ -42,7 +40,7 @@ preds_stack <- terra::rast(preds)
 ```{r}
 occ_prj <- occ %>%
   st_as_sf(coords = c("longitude", "latitude"), crs = 4326) %>%
-  st_transform(crs = crs(preds_stack)) %>%
+  st_transform(crs = crs(predictors)) %>%
   # convert back to csv of lat/long for model input
   mutate(latitude = st_coordinates(.)[, "Y"], longitude = st_coordinates(.)[, "X"]) %>%
   dplyr::select(species, longitude, latitude) %>%
@@ -65,12 +63,10 @@ species_SDMs <- purrr::map(
   ~ execute_SDM(
     species = .x,
     occ = occ_prj[occ_prj$species == .x,],
-    predictors = preds_stack,
-    #features = c("LQ", "LQHP"), # note the model throws an error when using "H" features
-    rm = 1:5,
-    null_models = FALSE,
+    predictors = predictors,
+    null_models = TRUE,
     save = TRUE,
-    output_path = "data/output_sdm/"
+    output_path = paste0("data/output_sdm/", .x)
   )
 )
 

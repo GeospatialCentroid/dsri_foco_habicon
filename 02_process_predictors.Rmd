@@ -105,9 +105,13 @@ end-start
 ## Stack and save all predictors
 
 ```{r}
-# stack rasters
-combined_rast <- terra::rast(c(pred_aadt, pred_perccov, pred_dist, pred_nodist))
-plot(combined_rast)
+# stack rasters we want
+combined_rast <- c(pred_aadt, rast(pred_perccov), rast(pred_dist))
+
+# edit some of the names
+names(combined_rast[["bc8f7f07-7560-4191-aa2e-8f274a1c29e7202046-1-133oxp5.v8wfi"]]) <- "Natural_habitat"
+
+names(combined_rast[[1]]) <- "foco_aadt"
 
 # Save the predictor raster stack
 writeRaster(combined_rast, filename = file.path(output_path, "pred_stack.tif"), overwrite = TRUE)
