@@ -19,6 +19,10 @@ This section is run directly from Julia, as there are current incompatibilities 
 
     *Note: On my PC I had to add [this environmental variable](https://discourse.julialang.org/t/cannot-instantiate-env-in-julia-1-10-adwaita-icon-theme-jll-git-tree-hash-error-anyone-else/108105/5) in order for Circuitscape/Omniscape to install correctly:* JULIA_PKG_IGNORE_HASHES=true
 
+    *Note: On Mac had to run this in terminal to load Julia after installation:*
+
+      `. /Users/caitlinmothes/.zshrc`
+
 3.  Check that all tests are passing:
 
     ```         
@@ -43,9 +47,9 @@ run_omniscape("Desktop/dsri_foco_habicon/ini/testing.ini")
 ## Explore Outputs
 
 ```{r}
-cum_curr_map <- rast("data/output_connectivity_1/cum_currmap.tif")
+cum_curr_map <- rast("data/output_connectivity/Agelaius_phoeniceus/cum_currmap.tif")
 
-norm_cum_currmap <- rast("data/output_connectivity_1/normalized_cum_currmap.tif")
+norm_cum_currmap <- rast("data/output_connectivity/Agelaius_phoeniceus/normalized_cum_currmap.tif")
 ```
 
 ```{r}

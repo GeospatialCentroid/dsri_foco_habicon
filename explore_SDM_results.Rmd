@@ -1,0 +1,11 @@
+# Workflow to explore SDM results
+
+Setup and read in files
+
+```{r}
+source("setup.R")
+```
+
+```{r}
+# list all directories in output_sdm
+```
