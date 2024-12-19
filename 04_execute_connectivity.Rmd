@@ -29,6 +29,99 @@ This section is run directly from Julia, as there are current incompatibilities 
     julia> Pkg.test("Omniscape")
     ```
 
+## Create Resistance files
+
+```{r}
+source("setup.R")
+```
+
+Omniscape takes in resistance files and prefers no values are less than one (in regards to its method for calculating sources from the resistance file).
+
+Need to read in suitability rasters, multiply values by 10 (currently range 0-1) and then calculate the inverse and save resistance layers
+
+```{r}
+# read in resistance files
+resistance_files <- map(list.dirs("data/output_sdm", recursive = FALSE), ~list.files(.x, pattern = ".tif", full.names = TRUE))
+
+# calculate and save each resistance layer
+walk(resistance_files, function(x, output_path = "data/output_resistance"){
+  
+  file <- terra::rast(x)
+  
+  # raster math
+  file_convert <- 10 - file * 10 + 1
+  
+  # save
+  if(!dir.exists(output_path)) {
+    dir.create(output_path)
+  }
+  
+  ## get file name
+  file_name <- tools::file_path_sans_ext(basename(x))
+  writeRaster(file_convert, paste0(output_path, "/", file_name, "_resistance.tif"))
+  
+})
+
+```
+
+## Create ini files
+
+Details on Omniscape settings can be found here: <https://docs.circuitscape.org/Omniscape.jl/stable/usage/#Running-Omniscape>
+
+In R, create .ini file for each species
+
+```{r}
+# function to create ini paths
+create_ini <- function(resistance_file,
+                       radius = 100,
+                       block_size = 1,
+                       project_name,
+                       source_from_resistance = TRUE,
+                       r_cutoff = 50,
+                       calc_normalized_current = TRUE,
+                       parallelize = TRUE,
+                       parallel_batch_size = 20,
+                       solver = "cholmod",
+                       write_raw_currmap = TRUE,
+                       species,
+                       ini_path = "ini/") {
+  
+  config <- list(
+    Required = list(
+      resistance_file = resistance_file,
+      radius = radius,
+      block_size = block_size,
+      project_name = project_name
+    ),
+    General_options = list(
+      source_from_resistance = source_from_resistance,
+      r_cutoff = r_cutoff,
+      calc_normalized_current = calc_normalized_current,
+      parallelize = parallelize,
+      parallel_batch_size = parallel_batch_size,
+      solver = solver
+    ),
+    Outpt_options = list(
+      write_raw_currmap = write_raw_currmap
+    )
+  )
+  
+  if(!dir.exists(ini_path)){
+    dir.create(ini_path)
+  }
+  
+  write.ini(config, paste0(ini_path, "/", species, ".ini"))
+  
+  cat(paste("INI file for", species, "created!"))
+  
+}
+```
+
+```{r}
+# vectors to map over
+
+```
+
 ## Run Omniscape
 
 Set number of threads to use **(from Command Prompt)**
