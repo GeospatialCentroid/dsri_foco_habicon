@@ -73,7 +73,7 @@ In R, create .ini file for each species
 ```{r}
 # function to create ini paths
 create_ini <- function(resistance_file,
-                       radius = 100,
+                       radius = 100, # check on this, this is # pixels
                        block_size = 1,
                        project_name,
                        source_from_resistance = TRUE,
