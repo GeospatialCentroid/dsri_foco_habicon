@@ -184,3 +184,51 @@ tm_shape(natural_habitat) +
   tm_shape(rwbl_cores) + 
   tm_polygons(col = "blue")
 ```
+
+# Explore Land Cover
+
+```{r}
+lc <- terra::rast("data/input_raw/landcover_mchale/FC_landcover.tif")
+
+#plotting takes too long
+# qtm(lc)
+
+# categories and freq
+terra::freq(lc)
+
+```
+
+Land cover classes from metadata:
+
+Tree Canopy
+
+Grass/Shrubs
+
+Bare Soil
+
+Water
+
+Buildings
+
+Roads/Railroads
+
+Other Paved
+
+### NLCD land cover
+
+```{r}
+nlcd <- terra::rast("data/input_raw/nlcd_tcc_CONUS_2021_v2021-4/nlcd_tcc_conus_2021_v2021-4.tif") %>% 
+  terra::crop(st_transform(foco_boundary, crs = crs(.)), mask = TRUE)
+
+tmap_mode("view")
+
+qtm(nlcd)
+
+terra::values(nlcd) %>% unique()
+
+terra::freq(nlcd) # not working...
+
+
+```
+
+## 

@@ -1,0 +1,181 @@
+# Calculate Habitat Priorities with Habicon
+
+```{r}
+source("setup.R")
+```
+
+Load Habicon:
+
+```{r eval=FALSE}
+devtools::install_github("ccmothes/habicon")
+```
+
+```{r}
+library(habicon)
+```
+
+## Read in suitability and connectivity maps
+
+```{r}
+# suitability
+suit_maps <- map(list.dirs("data/output_sdm", recursive = FALSE), ~list.files(.x, pattern = ".tif", full.names = TRUE)) %>% 
+  map(~terra::rast(.x))
+
+# connectivity
+corr_maps <- map(list.dirs("data/output_connectivity/", recursive = FALSE), ~terra::rast(paste0(.x, "/cum_currmap.tif")))
+
+# resistance layers used for connectivity
+resist_maps <-  map(list.files("data/output_resistance/", pattern = ".tif", full.names = TRUE), ~terra::rast(.x))
+```
+
+### Set up parameters
+
+```{r}
+# for saving later
+
+## species name vector
+species <- map(suit_maps,
+  ~ terra::sources(.x) %>%
+    basename() %>%
+    tools::file_path_sans_ext() %>% str_remove("_prediction")
+)
+
+## path to save outputs
+output_path <- "data/output_habicon"
+
+if(!dir.exists(output_path)) {
+  dir.create(output_path)
+}
+
+
+# Species Dispersal Distances (retrieved from NIC 2019 report)
+distance <- c(422, 3219, 805, 281, 305, 16093)
+```
+
+## Prep Maps
+
+```{r}
+# using top 20% of suitability/connectivity values
+suit_bin <-  map(suit_maps, ~bin_map(.x, threshold = quantile(terra::values(.x, na.rm = TRUE), 0.85)))
+
+corr_bin <- map(corr_maps, ~bin_map(.x, threshold = quantile(terra::values(.x, na.rm = TRUE), 0.85)))
+
+```
+
+Visualize
+
+```{r}
+map(suit_bin, qtm)
+
+map(corr_bin, qtm)
+```
+
+## Calculate Patch Priority
+
+```{r}
+start <- Sys.time()
+
+patches <- vector("list", length = length(species))
+
+for (i in 1:length(species)) {
+  patches[[i]] <- patch_priority(
+    suit = suit_maps[[i]],
+    suit_bin = suit_bin[[i]],
+    corr_bin = corr_bin[[i]],
+    resist = resist_maps[[i]],
+    d = distance[i],
+    progress = TRUE
+  )
+  
+}
+
+
+end <- Sys.time()
+
+end - start
+```
+
+### View and Save Outputs
+
+View:
+
+```{r}
+patch_maps <- vector("list", length = length(patches))
+
+for (i in 1:length(species)){
+  
+  patch_maps[[i]] <- keep(patches[[i]], ~inherits(.x, "SpatRaster")) %>%
+    rast()
+}
+
+map(patch_maps, plot)
+```
+
+Save:
+
+```{r}
+# save patch priority raster stack
+for (i in 1:length(species)){
+  
+  keep(patches[[i]], ~inherits(.x, "SpatRaster")) %>% 
+    rast() %>% 
+    writeRaster(filename = paste0(output_path, "/", species[i], "_patch_priority.tif"), overwrite = TRUE)
+  
+}
+
+# save data frames
+for (i in 1:length(species)){
+  
+  keep(patches[[i]], ~inherits(.x, "data.frame")) %>% 
+    bind_rows() %>% 
+    write_csv(file = paste0(output_path, "/", species[i], "_patch_priority_table.csv"))
+  
+}
+
+```
+
+## Calculate Corridor Priority
+
+```{r}
+start <- Sys.time()
+
+corridors <- vector("list", length = length(species))
+
+for (i in 1:length(species)) {
+  corridors[[i]] <- corr_priority(
+    suit = suit_maps[[i]],
+    suit_bin = suit_bin[[i]],
+    corr_bin = corr_bin[[i]],
+    resist = resist_maps[[i]],
+    d = distance[i],
+    progress = TRUE
+  )
+  
+}
+
+
+end <- Sys.time()
+
+end - start
+```
+
+### View and Save
+
+View:
+
+```{r}
+map(corridors, qtm)
+```
+
+Save:
+
+```{r}
+walk2(corridors, species, function(x, y) {
+  # assign informative names
+  terra::set.names(x, paste0(y, "_corr_priority"))
+
+  # save raster
+  writeRaster(x, filename = paste0(output_path, "/", y, "_corridor_priority.tif"), overwrite = TRUE)
+})
+
+```

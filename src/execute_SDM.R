@@ -180,7 +180,7 @@ execute_SDM <- function(species,
       color = "fc",
       x.var = "rm",
       error.bars = FALSE),
-    prediction_map = predicted_mod,
+    #prediction_map = predicted_mod, # error with saving terra objects to .RData
     all_mods = all_mods,
     selected_mod = selected_mod,
     response_curves = response_curves,
@@ -205,7 +205,17 @@ execute_SDM <- function(species,
       dir.create(output_path, recursive = TRUE)
     }
     
-    save(final_output, file = paste0(output_path, "/", species, "_SDM_results.RData"))
+    #assign meaningful environmental name
+    filename <- paste0(gsub(" ", "_", species), "_SDM_output")
+    
+    assign(filename, final_output)
+    
+    # save all model objects to .RData file
+    save(list = filename,
+         file = paste0(output_path, "/", gsub(" ", "_", species), "_SDM_results.RData"))
+    
+    # save habitat suitability map as .tif (needed for connectivity module)
+    terra::writeRaster(predicted_mod, paste0(output_path, "/", gsub(" ", "_", species), "_prediction.tif"), overwrite = TRUE)
     
   }
   
