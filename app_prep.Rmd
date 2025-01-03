@@ -87,6 +87,8 @@ Define variables to pull
       #Percent low income
       "C17002_001",
       "C17002_008",
+      # Median household income
+      "B19013_001",
       #Percent linguistic isolation
       "C16002_001",
       "C16002_004",
@@ -166,11 +168,15 @@ cleaned_acs <- acs %>%
                                   B03002_001 * 100),
     # LOW INCOME
     low_income = ifelse(C17002_001 == 0, NA, C17002_001 - C17002_008),
-    percent_low_income = ifelse(C17002_001 == 0, NA, (C17002_001 - C17002_008) / C17002_001 * 100)) %>% 
-  dplyr::select(GEOID, NAME, total_population = B01003_001, housing_burden:percent_low_income) 
+    percent_low_income = ifelse(C17002_001 == 0, NA, (C17002_001 - C17002_008) / C17002_001 * 100),
+    # population density
+    area_sq_km = as.numeric(st_area(geometry)) / 1e6, # convert to sq km
+    population_density = B01003_001 / area_sq_km
+    ) %>% 
+  dplyr::select(GEOID, NAME, total_population = B01003_001, median_income = B19013_001, housing_burden:population_density) 
 
 
-st_write(cleaned_acs, "shiny/data/acs_Larimer_2022.shp")
+st_write(cleaned_acs, "shiny/data/acs_Larimer_2022.shp", append = FALSE)
 # also save as .RDS to preserve column names for shiny app
 save(cleaned_acs, file = "shiny/data/acs_Larimer_2022.RData") 
 ```
