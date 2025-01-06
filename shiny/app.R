@@ -6,6 +6,7 @@ library(sf)
 library(tidyverse)
 library(terra)
 library(leaflegend)
+library(shinyWidgets)
 
 # Read in data --------------------------------------------
 # patch priority
@@ -17,7 +18,6 @@ patch_maps <- map(
   ),
   terra::rast
 )
-
 ## names
 names(patch_maps) <-  map(
   patch_maps,
@@ -33,7 +33,6 @@ corr_maps <- map(
   ),
   terra::rast
 )
-
 ## names
 names(corr_maps) <-  map(
   corr_maps,
@@ -45,10 +44,24 @@ names(corr_maps) <-  map(
 patch_all <- terra::rast("data/output_habicon/patch_priority_all.tif")
 corr_all <- terra::rast('data/output_habicon/corridor_priority_all.tif')
 
+# richness palettes
+joint_patch_pal <- colorNumeric(
+  palette = "YlGn",
+  domain = values(patch_all),
+  na.color = "transparent"
+)
+
+joint_corr_pal <- colorNumeric(
+  palette = "RdPu",
+  domain = values(corr_all),
+  na.color = "transparent"
+)
+
+
 # census data
 load("data/acs_Larimer_2022.RData")
 
-# Create color palettes for each variable
+## create color palettes for each variable
 pal_list <- list(
   population_density = colorNumeric("Greys", cleaned_acs$population_density, na.color = "transparent"),
   median_income = colorNumeric("Greens", cleaned_acs$median_income, na.color = "transparent"),
@@ -57,7 +70,7 @@ pal_list <- list(
   low_income = colorNumeric("Reds", cleaned_acs$low_income, na.color = "transparent")
 )
 
-# Nice labels for variables
+## nice labels for census variables
 var_labels <- c(
   "Population Density",
   "Median Household Income",
@@ -76,6 +89,7 @@ species_names <- read_csv("data/species_names.csv") %>%
 
 # UI ------------------------------------------------------
 ui <- navbarPage(
+  id = "nav",
   title = "Fort Collins Conservation Decision Support Tool",
   theme = bs_theme(bootswatch = "litera"),
   
@@ -93,25 +107,38 @@ ui <- navbarPage(
           open = FALSE,
           accordion_panel(
             "Species Layers",
-            radioButtons(
-              "species",
-              "Species:",
-              choiceNames = species_names$common_name,
-              choiceValues = species_names$scientific_name,
-              selected = species_names$scientific_name[1]
+            materialSwitch("model_type", "View Joint Species Maps", value = FALSE),
+            # switchInput(
+            #   inputId = "model_type",
+            #   label = "View Maps By:",  # Add a label for context
+            #   onLabel = "Single Species",            # Label when switched on
+            #   offLabel = "All Species",            # Label when switched off
+            #   value = TRUE              # Default value (off = "No")
+            # ),
+            conditionalPanel(
+              "input.model_type == false",
+              radioButtons(
+                "species",
+                "Species:",
+                choiceNames = species_names$common_name,
+                choiceValues = species_names$scientific_name,
+                selected = species_names$scientific_name[1]
+              ),
+              checkboxGroupInput(
+                "map_type",
+                "Priority Maps:",
+                choices = c("Patches", "Corridors"),
+                selected = "Patches"
+              ),
             ),
-            
-            checkboxGroupInput(
-              "map_type",
-              "Priority Maps:",
-              choices = c("Patches", "Corridors"),
-              selected = "Patches"
-            ),
-            checkboxGroupInput(
-              "richness_maps",
-              "Joint Priority Maps:",
-              choices = c("Patches", "Corridors"),
-              selected = "Patches"
+            conditionalPanel(
+              "input.model_type == true",
+              checkboxGroupInput(
+                "richness_maps",
+                "Joint Priority Maps:",
+                choices = c("Patches", "Corridors"),
+                selected = "Patches"
+              )
             ),
             radioButtons(
               "patch_variable",
@@ -129,6 +156,7 @@ ui <- navbarPage(
           open = FALSE,
           accordion_panel(
             "Socioeconomic and Demographic Layers",
+            input_switch("show_blocks", "Show Layers", value = FALSE),
             radioButtons(
               "socio_layers",
               "",
@@ -187,64 +215,172 @@ ui <- navbarPage(
 
 server <- function(input, output, session) {
   
-  ## Reactive Species Maps ------------
-  filtered_habitat <- reactive({
-    habitat_points %>%
-      filter(species %in% input$species_select,
-             priority_score >= input$priority_threshold)
-  })
-  
-  ## Reactive Census Maps -------------
-  
   
   ## INTERACTIVE MAP --------------------------
   
- 
-  
+
   # species maps
   sp_patches <- reactive({
     patch_maps[[input$species]] %>%
       subset(grep(input$patch_variable, names(.)))
   })
   
-  # palettes
+  sp_corridors <- reactive({
+    corr_maps[[input$species]]
+  })
+  
+  # palettes and legend titles
+  
+  ## patches
   sp_patch_pal <- reactive({
     colorNumeric(
-      palette = "YlGn",
-      domain = values(sp_patches()),
+        palette = "YlGn",
+        domain = values(sp_patches()),
+        na.color = "transparent"
+      )
+  })
+  
+  sp_patch_title <- reactive({
+    if(names(sp_patches()) == "qwa") {
+      "Quality-Weighted Area"
+    } else if (names(sp_patches()) == "btwn") {
+      "Betweenness Centrality"
+    } else {
+      "Equivalent Connectivity"
+    }
+  })
+  
+  ## corridors
+  sp_corr_pal <- reactive({
+    colorNumeric(
+      palette = "RdPu",
+      domain = values(sp_corridors()),
       na.color = "transparent"
     )
   })
-  # sp_patch_pals <- reactive({
-  #   map(names(sp_patches()), ~colorNumeric(
-  #          palette = "inferno",
-  #          domain = values(sp_patches()[[.x]]),
-  #          na.color = "transparent"
-  #     ))
-  # })
 
   
   # Base map
   output$map <- renderLeaflet({
     leaflet() %>%
       addProviderTiles(providers$CartoDB.Positron) %>%
-      setView(lng = -105.05, lat = 40.57, zoom = 12) %>% 
-      addLayersControl(
-        overlayGroups = c("Patches", "Corridors", "Census Data")
-      ) %>% 
-      hideGroup("Census Data")
+      setView(lng = -105.05, lat = 40.57, zoom = 12) 
   })
+  
+  # this makes it so the proxy map is rendered in the background, otherwise the map is empty when you first navigate to this page
+  outputOptions(output, "map", suspendWhenHidden=FALSE)
   
   # Observe layer selection changes
   observe({
-    # Remove all existing layers
-    proxy <- leafletProxy("map") %>%
-      clearImages() %>% 
-      clearShapes() %>% 
-      clearControls()
     
-    ## Add socio layers
-    proxy %>%
+    input$nav
+
+    if(!input$model_type){
+    ## Add Species Layers
+    leafletProxy("map") %>%
+      clearShapes() %>% 
+      clearControls() %>% 
+      clearImages()
+    
+    # Add raster layers
+    if("Patches" %in% input$map_type){
+      leafletProxy("map") %>% 
+        addRasterImage(sp_patches(), 
+                       colors = sp_patch_pal(), 
+                       opacity = 0.9,
+                       group = "Patches") %>%
+        #addLegendNumeric(
+        addLegend(
+          group = "Patches",
+          pal = sp_patch_pal(),
+          values = na.omit(values(sp_patches())),
+          title = sp_patch_title(),
+          position = "bottomright"
+          #decreasing = T,
+          #labelStyle = "font-family: 'Arial'; font-size: 14px; color: #555;"
+        )  
+      
+    }
+    
+    if("Corridors" %in% input$map_type){
+      leafletProxy("map") %>% 
+        addRasterImage(sp_corridors(), 
+                       colors = sp_corr_pal(), 
+                       opacity = 0.9,
+                       group = "Corridors") %>%
+        #addLegendNumeric(
+        addLegend(
+          group = "Corridors",
+          pal = sp_corr_pal(),
+          values = na.omit(values(sp_corridors())),
+          title = "Corridor Priority",
+          position = "bottomright"
+          #decreasing = T,
+          #labelStyle = "font-family: 'Arial'; font-size: 14px; color: #555;"
+        ) 
+      
+    }
+      
+      # remove species maps if neither box is checked
+      if(is.null(input$map_type)){
+        leafletProxy("map") %>% 
+          clearGroup(c("Patches", "Corridors"))
+        
+      }
+  }
+    
+    ## JOINT MAPS -----------------
+    if(input$model_type){
+      leafletProxy("map") %>% 
+        clearImages()
+      
+      # # Add raster layers
+      # if("Patches" %in% input$richness_maps){
+      #   leafletProxy("map") %>% 
+      #     addRasterImage(patch_all, 
+      #                    colors = joint_patch_pal, 
+      #                    opacity = 0.9,
+      #                    group = "Patches") %>%
+      #     #addLegendNumeric(
+      #     addLegend(
+      #       group = "Patches",
+      #       pal = patch_all,
+      #       values = na.omit(values(patch_all)),
+      #       title = "Joint Patch Priority",
+      #       position = "bottomright"
+      #       #decreasing = T,
+      #       #labelStyle = "font-family: 'Arial'; font-size: 14px; color: #555;"
+      #     )  
+      #   
+      # }
+      
+      if("Corridors" %in% input$richness_maps){
+        leafletProxy("map") %>% 
+          addRasterImage(corr_all, 
+                         colors = joint_corr_pal, 
+                         opacity = 0.9,
+                         group = "Corridors") %>%
+          #addLegendNumeric(
+          addLegend(
+            group = "Corridors",
+            pal = corr_all,
+            values = na.omit(values(corr_all)),
+            title = "Joint Corridor Priority",
+            position = "bottomright"
+            #decreasing = T,
+            #labelStyle = "font-family: 'Arial'; font-size: 14px; color: #555;"
+          ) 
+        
+      }
+      
+      
+      
+    }
+      
+    
+    # Add Census Data
+    if(input$show_blocks) {
+      leafletProxy("map") %>% 
       addPolygons(
         data = cleaned_acs,
         fillColor = ~ pal_list[[input$socio_layers]](get(input$socio_layers)),
@@ -265,29 +401,10 @@ server <- function(input, output, session) {
         group = "Census Data",
         na.label = "No data"
       )
-    
-    if (!is.null(input$map_type)) {
-      proxy %>%
-        addRasterImage(sp_patches(), 
-                       colors = sp_patch_pal(), 
-                       opacity = 0.9,
-                       group = "Patches") %>%
-        addLegendNumeric(
-          group = "Patches",
-          pal = sp_patch_pal(),
-          values = na.omit(values(sp_patches())),
-          title = names(sp_patches()),
-          position = "bottomright",
-          decreasing = T,
-          labelStyle = "font-family: 'Arial'; font-size: 14px; color: #555;"
-        )
+        
     }
-    
-    # Update layer controls
-    proxy %>%
-      addLayersControl(
-        overlayGroups = c("Patches", "Corridors", "Census Data")
-      )
+
+   
 
   })
   
