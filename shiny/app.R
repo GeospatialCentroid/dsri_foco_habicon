@@ -44,13 +44,7 @@ names(corr_maps) <-  map(
 patch_all <- terra::rast("data/output_habicon/patch_priority_all.tif")
 corr_all <- terra::rast('data/output_habicon/corridor_priority_all.tif')
 
-# richness palettes
-joint_patch_pal <- colorNumeric(
-  palette = "YlGn",
-  domain = values(patch_all),
-  na.color = "transparent"
-)
-
+# richness palettes (patches is reactive below)
 joint_corr_pal <- colorNumeric(
   palette = "RdPu",
   domain = values(corr_all),
@@ -63,11 +57,15 @@ load("data/acs_Larimer_2022.RData")
 
 ## create color palettes for each variable
 pal_list <- list(
-  population_density = colorNumeric("Greys", cleaned_acs$population_density, na.color = "transparent"),
-  median_income = colorNumeric("Greens", cleaned_acs$median_income, na.color = "transparent"),
-  housing_burden = colorNumeric("Blues", cleaned_acs$housing_burden, na.color = "transparent"),
-  racial_minority = colorNumeric("Purples", cleaned_acs$racial_minority, na.color = "transparent"),
-  low_income = colorNumeric("Reds", cleaned_acs$low_income, na.color = "transparent")
+  population_density = colorNumeric("Greys", cleaned_acs$population_density, na.color = "red"),
+  median_income = colorNumeric("Greens", cleaned_acs$median_income, na.color = "gray"),
+  housing_burden = colorNumeric("Blues", cleaned_acs$housing_burden, na.color = "gray"),
+  percent_housing_burden = colorNumeric("Blues", cleaned_acs$percent_housing_burden, na.color = "gray"),
+  racial_minority = colorNumeric("Purples", cleaned_acs$racial_minority, na.color = "gray"),
+  percent_racial_minority = colorNumeric("Purples", cleaned_acs$percent_racial_minority, na.color = "gray"),
+  low_income = colorNumeric("Reds", cleaned_acs$low_income, na.color = "gray"),
+  percent_low_income = colorNumeric("Reds", cleaned_acs$percent_low_income, na.color = "gray")
+  
 )
 
 ## nice labels for census variables
@@ -75,8 +73,11 @@ var_labels <- c(
   "Population Density",
   "Median Household Income",
   "Housing Burden",
+  "Percent Housing Burden",
   "Racial Minority",
-  "Low Income"
+  "Percent Racial Minority",
+  "Low Income",
+  "Percent Low Income"
 )
 names(var_labels) <- names(pal_list)
 
@@ -85,6 +86,11 @@ names(var_labels) <- names(pal_list)
 species_names <- read_csv("data/species_names.csv") %>% 
   # remove yellow warbler (SDM errors)
   filter(!common_name %in% "Yellow Warbler")
+
+
+# NA LEGEND FIX
+css_fix <- "div.info.legend.leaflet-control br {clear: both;}"
+html_fix <- as.character(htmltools::tags$style(type = "text/css", css_fix))
 
 
 # UI ------------------------------------------------------
@@ -103,6 +109,8 @@ ui <- navbarPage(
         title = "Data Layers",
         width = 300,
         fixed = TRUE,
+        ## SPECIES LAYERS --------------------
+        
         accordion(
           open = FALSE,
           accordion_panel(
@@ -152,11 +160,14 @@ ui <- navbarPage(
             ),
           )
         ),
+        ## CENSUS LAYERS ---------------------
+        
         accordion(
           open = FALSE,
           accordion_panel(
             "Socioeconomic and Demographic Layers",
-            input_switch("show_blocks", "Show Layers", value = FALSE),
+            materialSwitch("show_blocks", "Show Layers", value = FALSE),
+            materialSwitch("show_pcnt", "Display Values as Percent", value = FALSE),
             radioButtons(
               "socio_layers",
               "",
@@ -192,7 +203,8 @@ ui <- navbarPage(
           full_screen = TRUE,
           height = "800px",
           #card_header("Interactive Map"),
-          leafletOutput("map", height = "100%")
+          leafletOutput("map", height = "100%"),
+          HTML(html_fix)
         ),
         
         card(
@@ -229,9 +241,16 @@ server <- function(input, output, session) {
     corr_maps[[input$species]]
   })
   
+  # joint maps
+  joint_patches <- reactive({
+    patch_all %>%
+      subset(grep(input$patch_variable, names(.)))
+  })
+  
+  
   # palettes and legend titles
   
-  ## patches
+  ## species patches
   sp_patch_pal <- reactive({
     colorNumeric(
         palette = "YlGn",
@@ -250,6 +269,25 @@ server <- function(input, output, session) {
     }
   })
   
+  ## joint patches
+  joint_patch_pal <- reactive({
+    colorNumeric(
+      palette = "YlGn",
+      domain = values(joint_patches()),
+      na.color = "transparent"
+    )
+  })
+  
+  joint_patch_title <- reactive({
+    if(names(joint_patches()) == "qwa") {
+      "Joint Quality-Weighted Area"
+    } else if (names(joint_patches()) == "btwn") {
+      "Joint Betweenness Centrality"
+    } else {
+      "Joint Equivalent Connectivity"
+    }
+  })
+  
   ## corridors
   sp_corr_pal <- reactive({
     colorNumeric(
@@ -259,8 +297,8 @@ server <- function(input, output, session) {
     )
   })
 
-  
-  # Base map
+
+    # Base map
   output$map <- renderLeaflet({
     leaflet() %>%
       addProviderTiles(providers$CartoDB.Positron) %>%
@@ -275,6 +313,8 @@ server <- function(input, output, session) {
     
     input$nav
 
+    ## SPECIES MAPS -------------------------
+    
     if(!input$model_type){
     ## Add Species Layers
     leafletProxy("map") %>%
@@ -294,11 +334,14 @@ server <- function(input, output, session) {
           group = "Patches",
           pal = sp_patch_pal(),
           values = na.omit(values(sp_patches())),
+          bins = 5,
           title = sp_patch_title(),
-          position = "bottomright"
+          labFormat = function(type, cuts, p) {
+            c("Low", rep("", length(cuts) - 2), "High")},
+          position = "topright"
           #decreasing = T,
           #labelStyle = "font-family: 'Arial'; font-size: 14px; color: #555;"
-        )  
+        ) 
       
     }
     
@@ -312,9 +355,12 @@ server <- function(input, output, session) {
         addLegend(
           group = "Corridors",
           pal = sp_corr_pal(),
+          bins = 5,
           values = na.omit(values(sp_corridors())),
           title = "Corridor Priority",
-          position = "bottomright"
+          labFormat = function(type, cuts, p) {
+            c("Low", rep("", length(cuts) - 2), "High")},
+          position = "topright"
           #decreasing = T,
           #labelStyle = "font-family: 'Arial'; font-size: 14px; color: #555;"
         ) 
@@ -330,31 +376,36 @@ server <- function(input, output, session) {
   }
     
     ## JOINT MAPS -----------------
-    if(input$model_type){
+    
+    if (input$model_type){
       leafletProxy("map") %>% 
-        clearImages()
+        clearImages() %>% 
+        clearControls()
       
-      # # Add raster layers
-      # if("Patches" %in% input$richness_maps){
-      #   leafletProxy("map") %>% 
-      #     addRasterImage(patch_all, 
-      #                    colors = joint_patch_pal, 
-      #                    opacity = 0.9,
-      #                    group = "Patches") %>%
-      #     #addLegendNumeric(
-      #     addLegend(
-      #       group = "Patches",
-      #       pal = patch_all,
-      #       values = na.omit(values(patch_all)),
-      #       title = "Joint Patch Priority",
-      #       position = "bottomright"
-      #       #decreasing = T,
-      #       #labelStyle = "font-family: 'Arial'; font-size: 14px; color: #555;"
-      #     )  
-      #   
-      # }
+      # Add raster layers
+      if("Patches" %in% input$richness_maps){
+        leafletProxy("map") %>%
+          addRasterImage(joint_patches(),
+                         colors = joint_patch_pal(),
+                         opacity = 0.9,
+                         group = "Patches") %>%
+          #addLegendNumeric(
+          addLegend(
+            group = "Patches",
+            pal = joint_patch_pal(),
+            bins = 5,
+            values = na.omit(values(joint_patches())),
+            title = joint_patch_title(),
+            labFormat = function(type, cuts, p) {
+              c("Low", rep("", length(cuts) - 2), "High")},
+            position = "topright"
+            #decreasing = T,
+            #labelStyle = "font-family: 'Arial'; font-size: 14px; color: #555;"
+          )
+
+      }
       
-      if("Corridors" %in% input$richness_maps){
+      if ("Corridors" %in% input$richness_maps){
         leafletProxy("map") %>% 
           addRasterImage(corr_all, 
                          colors = joint_corr_pal, 
@@ -363,13 +414,16 @@ server <- function(input, output, session) {
           #addLegendNumeric(
           addLegend(
             group = "Corridors",
-            pal = corr_all,
+            pal = joint_corr_pal,
+            bins = 5,
             values = na.omit(values(corr_all)),
             title = "Joint Corridor Priority",
-            position = "bottomright"
+            labFormat = function(type, cuts, p) {
+              c("Low", rep("", length(cuts) - 2), "High")},
+            position = "topright"
             #decreasing = T,
             #labelStyle = "font-family: 'Arial'; font-size: 14px; color: #555;"
-          ) 
+          )
         
       }
       
@@ -378,32 +432,69 @@ server <- function(input, output, session) {
     }
       
     
-    # Add Census Data
-    if(input$show_blocks) {
-      leafletProxy("map") %>% 
-      addPolygons(
-        data = cleaned_acs,
-        fillColor = ~ pal_list[[input$socio_layers]](get(input$socio_layers)),
-        fillOpacity = 0.7,
-        weight = 0.5,
-        color = "#444444",
-        group = "Census Data",
-        label = ~ paste0(var_labels[input$socio_layers], ": ", formatC(get(
-          input$socio_layers
-        ), big.mark = ",")),
-        popup = ~paste("Total Population:", total_population,"<br>Median Income: $", format(median_income, big.mark=","))
-      ) %>%
-      addLegend(
-        position = "bottomright",
-        pal = pal_list[[input$socio_layers]],
-        values = cleaned_acs[[input$socio_layers]],
-        title = var_labels[[input$socio_layers]],
-        group = "Census Data",
-        na.label = "No data"
-      )
+    ## CENSUS DATA -----------------
+    
+    if (input$show_blocks) {
+      
+      if (input$show_pcnt & input$socio_layers %in% c("housing_burden", "racial_minority", "low_income")) {
         
+        leafletProxy("map") %>%
+          clearShapes() %>%
+          addPolygons(
+            data = cleaned_acs,
+            fillColor = ~ pal_list[[paste0("percent_", input$socio_layers)]](get(paste0("percent_", input$socio_layers))),
+            fillOpacity = 0.5,
+            weight = 0.5,
+            color = "#444444",
+            group = "Census Data",
+            label = ~ paste0(var_labels[input$socio_layers], ": ", round(get(paste0("percent_", input$socio_layers)), 0), "%"),
+            popup = ~ paste(
+              "Total Population:",
+              format(total_population, big.mark = ","),
+              "<br>Median Income: $",
+              format(median_income, big.mark = ",")
+            )
+          ) %>%
+          addLegend(
+            position = "bottomright",
+            pal = pal_list[[paste0("percent_", input$socio_layers)]],
+            values = cleaned_acs[[paste0("percent_", input$socio_layers)]],
+            title = var_labels[[paste0("percent_", input$socio_layers)]],
+            group = "Census Data",
+            na.label = "No data"
+          )
+        
+      } else {
+      
+      leafletProxy("map") %>%
+        clearShapes() %>%
+        addPolygons(
+          data = cleaned_acs,
+          fillColor = ~ pal_list[[input$socio_layers]](get(input$socio_layers)),
+          fillOpacity = 0.5,
+          weight = 0.5,
+          color = "#444444",
+          group = "Census Data",
+          label = ~ paste0(var_labels[input$socio_layers], ": ", format(round(get(input$socio_layers), 0), big.mark = ",")),
+          popup = ~ paste(
+            "Total Population:",
+            format(total_population, big.mark = ","),
+            "<br>Median Income: $",
+            format(median_income, big.mark = ",")
+          )
+        ) %>%
+        addLegend(
+          position = "bottomright",
+          pal = pal_list[[input$socio_layers]],
+          values = cleaned_acs[[input$socio_layers]],
+          title = var_labels[[input$socio_layers]],
+          group = "Census Data",
+          na.label = "No data"
+        )
+      
+      }
     }
-
+    
    
 
   })
