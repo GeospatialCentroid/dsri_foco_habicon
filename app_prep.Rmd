@@ -58,9 +58,11 @@ corr_sum <- map(corr_maps, habicon::rescale_map) %>%
 
 
 # save
-writeRaster(patch_sum, "data/output_habicon/patch_priority_all.tif")
+writeRaster(patch_sum, "data/output_habicon/patch_priority_all.tif", overwrite = TRUE)
+writeRaster(patch_sum, "shiny/data/output_habicon/patch_priority_all.tif", overwrite = TRUE)
 
-writeRaster(corr_sum, "data/output_habicon/corridor_priority_all.tif")
+writeRaster(corr_sum, "data/output_habicon/corridor_priority_all.tif", overwrite = TRUE)
+writeRaster(corr_sum, "shiny/data/output_habicon/corridor_priority_all.tif", overwrite = TRUE)
 ```
 
 ## Census Data
