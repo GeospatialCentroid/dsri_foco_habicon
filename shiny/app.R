@@ -493,6 +493,10 @@ server <- function(input, output, session) {
         )
       
       }
+    } else {
+      
+      leafletProxy("map") %>%
+        clearShapes() 
     }
     
    
