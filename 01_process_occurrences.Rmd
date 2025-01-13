@@ -201,3 +201,10 @@ final_occ <- read_csv("data/NIC_survey_occ_processed.csv") %>%
 # save final output
 write_csv(final_occ, "data/input_occ/final_model_occurrences.csv")
 ```
+
+```{r}
+# save list of species names
+species_names <- tibble(scientific_name = c("Agelaius_phoeniceus", "Colias_eurytheme", "Colias_philodice", "Setophaga_petechia", "Sturnella_neglecta", "Tyrannus_verticalis",  "Vanessa_cardui"), common_name = c("Red-winged Blackbird", "Orange Sulphur", "Clouded Sulphur", "Yellow Warbler", "Western Meadowlark", "Western Kingbird", "Painted Lady"))
+
+write_csv(species_names, "data/species_names.csv")
+```
