@@ -301,8 +301,20 @@ server <- function(input, output, session) {
     # Base map
   output$map <- renderLeaflet({
     leaflet() %>%
-      addProviderTiles(providers$CartoDB.Positron) %>%
-      setView(lng = -105.05, lat = 40.57, zoom = 12) 
+      addTiles(group = "OpenStreetMap") %>% 
+      addProviderTiles(providers$CartoDB.Positron, group = "CartoDB Positron") %>%
+      setView(lng = -105.05, lat = 40.57, zoom = 12) %>% 
+      addLayersControl(
+        baseGroups = c("CartoDB Positron", "OpenStreetMap"),
+        options = layersControlOptions(collapsed = TRUE)
+      ) %>% 
+      htmlwidgets::onRender("
+    function(el, x) {
+      this.on('baselayerchange', function(e) {
+        e.layer.bringToBack();
+      })
+    }
+  ")
   })
   
   # this makes it so the proxy map is rendered in the background, otherwise the map is empty when you first navigate to this page
