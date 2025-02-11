@@ -231,4 +231,14 @@ terra::freq(nlcd) # not working...
 
 ```
 
-## 
+
+## Jasmine Landcover and IGS
+
+```{r}
+foco_lc <- terra::rast('data/Jasmine/Fort Collins IGS 2023- Full Land Cover Classes/FGS_RM_FOCO_LC_2023.tif')
+
+igs <- sf::st_read("data/Jasmine/Fort Collins IGS 2023- Polygons/IGS_Polygons_FOCO_2023.shp")
+```
+
+## Look at just water layer:
+
