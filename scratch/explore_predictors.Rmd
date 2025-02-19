@@ -241,4 +241,10 @@ igs <- sf::st_read("data/Jasmine/Fort Collins IGS 2023- Polygons/IGS_Polygons_FO
 ```
 
 ## Look at just water layer:
+```{r}
+water <- foco_lc
+water[water != 1] <- NA
+
+plot(water)
+```
 
