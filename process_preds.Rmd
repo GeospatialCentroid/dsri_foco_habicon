@@ -26,7 +26,8 @@ path_perccov <- c("data/input_raw/Impervious_Surface/impervious_surfaces_fort_co
                   "data/input_raw/Green_Space/nic_green_space_2015.shp"
                   )
 path_dist <- c("data/input_raw/Hydrology/Hydrology.shp",
-               "data/input_raw/Buildings/Buildings.shp")
+               "data/input_raw/Buildings/Buildings.shp",
+               "data/input_raw/Jasmine/Jasmine_inf_greenspace_sep/lc_inf_greenspace.tif")
 path_nodist <- c("data/input_raw/Traffic-Density/foCO_traffic.tif")
 
 # we're in NAD83, so res and buffer are in meters
@@ -55,9 +56,9 @@ process_preds <- function(input_path, aoi_path, resolution, type, buffer, save, 
   raster_file <- NULL
   output_object <- NULL
   
-  if (grepl("\\.shp$", predictor_path, ignore.case = TRUE)) {
+  if (grepl("\\.shp$", input_path, ignore.case = TRUE)) {
     # Read in shapefile
-    shapefile <- st_read(predictor_path)
+    shapefile <- st_read(input_path)
     
     # Set CRS to match the aoi
     shapefile <- st_transform(shapefile, crs = crs(aoi))
@@ -86,16 +87,16 @@ process_preds <- function(input_path, aoi_path, resolution, type, buffer, save, 
     }
     
     # Extract filename without extension for naming 
-    file_name <- tools::file_path_sans_ext(basename(predictor_path))
+    file_name <- tools::file_path_sans_ext(basename(input_path))
     
     # Store the processed object with the filename
     output_object <- rast_shapefile
     
     names(output_object) <- file_name
     
-  } else if (grepl("\\.tif$", predictor_path, ignore.case = TRUE)) {
+  } else if (grepl("\\.tif$", input_path, ignore.case = TRUE)) {
     # Read in raster and aoi files
-    raster_file <- rast(predictor_path)
+    raster_file <- rast(input_path)
     
     # Set aoi temporarily to raster CRS - so we don't need to project full, large rasters
     shapefile_temp <- st_transform(aoi, crs = crs(raster_file))
@@ -122,7 +123,7 @@ process_preds <- function(input_path, aoi_path, resolution, type, buffer, save, 
     }
     
     # Extract filename without extension for naming
-    file_name <- tools::file_path_sans_ext(basename(predictor_path))
+    file_name <- tools::file_path_sans_ext(basename(input_path))
     
     # Store the processed object with the filename
     output_object <- raster_file

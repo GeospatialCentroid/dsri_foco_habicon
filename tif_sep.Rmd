@@ -12,16 +12,16 @@ output: html_notebook
 source("setup.R") 
 
 # read in raster to be separated 
-raster_path <- "data/input_raw/landcover_mchale/FC_landcover.tif"
+raster_path <- "data/Jasmine/Fort Collins IGS 2023- Reclassified Raster FGS Removed/IGS_LC_FOCO_2023.tif"
 
 # write a lookup table that links landcover to the feature number in band
 lookup_table <- data.frame(
-  category_value = c(1, 2, 3, 4, 5, 6, 7),
-  land_cover = c("TreeCanopy", "Grass_Shrubs", "BareSoil", "Water", "Buildings", "Roads_Railroads", "OtherPaved")
+  category_value = c(0,1),
+  land_cover = c("neg_space", "inf_greenspace")
 )
 
 # set output directory
-output_dir <- "data/input_raw/landcover_mchale/FC_landcover_sep/"
+output_dir <- "data/Jasmine/Jasmine_inf_greenspace_sep"
 ```
 
 ```{r}
