@@ -231,16 +231,18 @@ terra::freq(nlcd) # not working...
 
 ```
 
-
 ## Jasmine Landcover and IGS
 
 ```{r}
-foco_lc <- terra::rast('data/Jasmine/Fort Collins IGS 2023- Full Land Cover Classes/FGS_RM_FOCO_LC_2023.tif')
+foco_lc_full <- terra::rast('data/Jasmine/Fort Collins IGS 2023- Full Land Cover Classes/FGS_RM_FOCO_LC_2023.tif')
 
 igs <- sf::st_read("data/Jasmine/Fort Collins IGS 2023- Polygons/IGS_Polygons_FOCO_2023.shp")
+
+foco_lc_fgs_removed <- terra::rast("data/Jasmine/Fort Collins IGS 2023- Reclassified Raster FGS Removed/IGS_LC_FOCO_2023.tif")
 ```
 
 ## Look at just water layer:
+
 ```{r}
 water <- foco_lc
 water[water != 1] <- NA
@@ -248,3 +250,8 @@ water[water != 1] <- NA
 plot(water)
 ```
 
+Explore tif sep layers
+
+```{r}
+igs_raster <- terra::rast("data/Jasmine/Jasmine_inf_greenspace_sep/lc_inf_greenspace.tif")
+```
