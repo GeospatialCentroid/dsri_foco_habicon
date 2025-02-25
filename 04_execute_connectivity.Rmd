@@ -1,0 +1,182 @@
+# Run Connectivity Models in Julia
+
+This module runs Omniscape in Julia. Omniscape is a newer model, based upon Circuitscape but better designed for spatially continuous input surfaces like habitat suitability models.
+
+Omniscape User Guide: <https://docs.circuitscape.org/Omniscape.jl/latest/usage/#User-Guide> and GitHub: <https://github.com/Circuitscape/Omniscape.jl>
+
+This workflow executes Omniscape in Julia, and as there are current incompatibilities with the newest version of Julia (1.11) and the `JuliaCall` R package, must be run externally. Future versions will hopefully be able to execute directly from this .Rmd. In the future, instructions for running directly from R can be found here: <https://github.com/Circuitscape/Circuitscape.jl/issues/381>.
+
+## Install/Setup Julia and Omniscape
+
+1.  Install Julia: <https://julialang.org/downloads/>
+
+2.  Install Omniscape:
+
+    ```         
+    julia> using Pkg
+    julia> Pkg.add("Omniscape")
+    ```
+
+    *Note: On PC I had to add [this environmental variable](https://discourse.julialang.org/t/cannot-instantiate-env-in-julia-1-10-adwaita-icon-theme-jll-git-tree-hash-error-anyone-else/108105/5) in order for Circuitscape/Omniscape to install correctly:* JULIA_PKG_IGNORE_HASHES=true
+
+    *Note: On Mac had to run this in terminal to load Julia after installation:*
+
+      `. /Users/caitlinmothes/.zshrc`
+
+3.  Check that all tests are passing:
+
+    ```         
+    julia> Pkg.test("Omniscape")
+    ```
+
+## Create Resistance files
+
+```{r}
+source("setup.R")
+```
+
+Omniscape takes in resistance files and prefers no values are less than one (in regards to its method for calculating sources from the resistance file).
+
+Need to read in suitability rasters, multiply values by 10 (currently range 0-1) and then calculate the inverse and save resistance layers.
+
+```{r}
+# read in suitability files
+suitability_files <- map(list.dirs("data/output_sdm", recursive = FALSE), ~list.files(.x, pattern = ".tif", full.names = TRUE))
+
+# calculate and save each resistance layer
+walk(suitability_files, function(x, output_path = "data/output_resistance"){
+  
+  file <- terra::rast(x)
+  
+  # raster math
+  file_convert <- 10 - file * 10 + 1
+  
+  # save
+  if(!dir.exists(output_path)) {
+    dir.create(output_path)
+  }
+  
+  ## get file name
+  file_name <- tools::file_path_sans_ext(basename(x))
+  writeRaster(file_convert, paste0(output_path, "/", file_name, "_resistance.tif"), overwrite = TRUE)
+  
+})
+
+```
+
+## Create ini files
+
+Details on Omniscape settings can be found here: <https://docs.circuitscape.org/Omniscape.jl/stable/usage/#Running-Omniscape>
+
+In R, create an .ini file for each species
+
+```{r}
+# function to create ini paths
+create_ini <- function(resistance_file,
+                       radius = 100, # check on this, this is # pixels
+                       block_size = 1,
+                       project_name,
+                       source_from_resistance = TRUE,
+                       r_cutoff = 5, #Using 5, which represents >50% prob of occ can act as a source
+                       calc_normalized_current = TRUE,
+                       parallelize = TRUE,
+                       parallel_batch_size = 20,
+                       solver = "cholmod",
+                       write_raw_currmap = TRUE,
+                       species,
+                       ini_path = "ini/") {
+  
+  config <- list(
+    Required = list(
+      resistance_file = resistance_file,
+      radius = radius,
+      block_size = block_size,
+      project_name = project_name
+    ),
+    General_options = list(
+      source_from_resistance = source_from_resistance,
+      r_cutoff = r_cutoff,
+      calc_normalized_current = calc_normalized_current,
+      parallelize = parallelize,
+      parallel_batch_size = parallel_batch_size,
+      solver = solver
+    ),
+    Outpt_options = list(
+      write_raw_currmap = write_raw_currmap
+    )
+  )
+  
+  if(!dir.exists(ini_path)){
+    dir.create(ini_path)
+  }
+  
+  write.ini(config, paste0(ini_path, "/", species, ".ini"))
+  
+}
+```
+
+Execute function and create ini files
+
+```{r}
+# species to map over
+species <- map(suitability_files, ~tools::file_path_sans_ext(basename(.x)) %>% str_remove("_prediction"))
+
+# paths to resistance files (ensure same order as species vector)
+resistance_files <-  list.files("data/output_resistance/", pattern = ".tif", full.names = TRUE) %>% normalizePath()
+
+# execute ini function
+walk2(resistance_files, species, ~create_ini(resistance_file = .x, species = .y,
+                                             project_name = paste0(normalizePath(paste0("data/output_connectivity/")), "/", .y, "_", Sys.Date())))
+
+```
+
+## Run Omniscape
+
+Start Julia and set number of threads to use **(from Command Prompt).**
+
+```{bash}
+julia -t 4
+```
+
+Execute Omniscape for all species
+
+```{julia}
+using Omniscape
+using Glob  # For easier file pattern matching
+
+# Define the folder containing the .ini files
+folder_path = "/Users/caitlinmothes/Desktop/dsri_foco_habicon/ini"
+
+# List all .ini files in the specified folder
+ini_files = glob("*.ini", folder_path)
+
+# Function to process each .ini file
+function process_ini_files(files)
+    for ini_file in files
+        println("Processing: ", ini_file)
+        try
+            run_omniscape(ini_file)
+        catch e
+            println("Error processing file ", ini_file, ": ", e)
+        end
+    end
+end
+
+# Run the function on the list of .ini files
+process_ini_files(ini_files)
+
+```
+
+## Inspect Maps
+
+```{r}
+cum_maps <- map(list.dirs("data/output_connectivity/", recursive = FALSE), ~terra::rast(paste0(.x, "/cum_currmap.tif")))
+
+norm_maps <- map(list.dirs("data/output_connectivity/", recursive = FALSE), ~terra::rast(paste0(.x, "/normalized_cum_currmap.tif")))
+
+
+# map them out
+map(cum_maps, ~tm_shape(.x) + tm_raster(style = "cont"))
+
+map(norm_maps, ~tm_shape(.x) + tm_raster(style = "cont"))
+```
