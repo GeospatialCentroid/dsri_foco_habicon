@@ -1,7 +1,9 @@
 # some code for making static maps for presentations
 
 library(tmap)
+library(sf)
 library(maptiles)
+library(tigris)
 
 
 source("setup.R") 
@@ -85,3 +87,40 @@ tm_shape(tile_maps) +
             legend.title.size = 3) +
   tm_compass() +
   tm_scale_bar()
+
+
+
+# FoCo Site Map
+
+# add more layers
+states <- tigris::states(cb = TRUE)
+
+co <- states %>% 
+  dplyr::filter(NAME == "Colorado")
+
+nat_areas <- st_read("data/input_raw/Natural_Areas/Natural_Areas.shp") %>% 
+  st_crop(st_bbox(st_transform(aoi, st_crs(.))))
+
+
+## Download tiles and compose basemap raster (high res, takes a few seconds)
+tiles_co <- get_tiles(x = co, provider =  "Esri.WorldShadedRelief", zoom = 8)
+tiles_foco <- get_tiles(x = aoi, provider =  "Esri.WorldTopoMap", zoom = 12)
+tiles_sat <- get_tiles(x = st_buffer(aoi, 1000), provider =  "Esri.WorldImagery", zoom = 12)
+
+tmap_mode("plot")
+
+#co map
+tm_shape(tiles_co) +
+  tm_rgb() +
+  tm_shape(states)+
+  tm_borders(col = "black")
+
+# foco map
+tm_shape(tiles_sat) +
+  tm_rgb()  +
+   tm_shape(aoi) +
+   tm_polygons(col = "white", fill_alpha = 0, lwd = 3) +
+  tm_shape(nat_areas) +
+  tm_polygons(fill = "blue", fill_alpha = 0.75) +
+  tm_compass()+
+  tm_scalebar()
