@@ -1,11 +1,91 @@
 # Workflow to explore SDM results
 
-Setup and read in files
+## Setup
 
 ```{r}
 source("setup.R")
+
+# list all directories in output_sdm
+output_dirs <- list.dirs("data/output_sdm", recursive = FALSE)
+
+specs <- basename(output_dirs)
+```
+
+### Load in data
+
+```{r}
+walk(output_dirs, ~load(list.files(.x, pattern = ".RData", full.names = TRUE), envir = .GlobalEnv))
+```
+
+## Visualize results
+
+### Model Performance
+
+#### Tuning Results
+
+Look at omission rates and validation AUC
+
+```{r}
+evalplot.stats(
+  e = Agelaius_phoeniceus_SDM_output$all_mods,
+  stats = c("auc.diff", "cbi.val", "or.10p"),
+  color = "fc",
+  x.var = "rm",
+  error.bars = FALSE
+  #dodge = 0.5
+)
 ```
 
 ```{r}
-# list all directories in output_sdm
+
+```
+
+### Null Models
+
+```{r}
+#testing
+load("data/output_sdm_2025-02-28/Agelaius phoeniceus/Agelaius_phoeniceus_SDM_results.RData")
+```
+
+Compare empirical results to simulated. Here hoping for empirical eval metrics that are significantly better than a null model.
+
+```{r}
+null.emp.results(Agelaius_phoeniceus_SDM_output$null_mods) %>% DT::datatable()
+```
+
+Plots of the null model results as a histogram. In this example, the empirical validation CBI value (solid red line) is significantly higher than random, as it is higher than the 99th quantile of the null values (dashed purple line). For reference, this plot also includes the null 95th quantile (dashed blue line) and the null mean (solid blue line).
+
+```{r}
+evalplot.nulls(Agelaius_phoeniceus_SDM_output$null_mods, stats = c("or.10p", "auc.val", "cbi.val"), plot.type = "histogram")
+```
+
+### Variable Importance
+
+```{r}
+ggplot(Agelaius_phoeniceus_SDM_output$variable_importance, aes(x = reorder(Variable, -Permutation_importance), y = Permutation_importance)) +
+  geom_col() +
+  geom_errorbar(aes(ymin = Permutation_importance - sd, 
+                    ymax = Permutation_importance + sd),
+                width = 0.2)+
+  xlab("")
+```
+
+### Response Curves
+
+```{r}
+# get list of variables
+vars <- Agelaius_phoeniceus_SDM_output$variable_importance$Variable
+
+rc <- Agelaius_phoeniceus_SDM_output$response_curves
+```
+
+```{r}
+library(patchwork)
+
+plots <- map(vars, ~ggplot(rc, aes(x = !!sym(.x), y = !!sym(paste0("preds_", .x)))) +
+  geom_line() +
+  xlab(.x) +
+  ylab("Presence Probability"))
+
+wrap_plots(plots, ncol = 3)
 ```
