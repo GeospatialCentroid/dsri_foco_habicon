@@ -109,7 +109,8 @@ end-start
 combined_rast <- c(pred_aadt, rast(pred_perccov), rast(pred_dist))
 
 # edit some of the names
-names(combined_rast[["bc8f7f07-7560-4191-aa2e-8f274a1c29e7202046-1-133oxp5.v8wfi"]]) <- "Natural_habitat"
+# fix long name for natural habitat
+names(combined_rast)[names(combined_rast) == "bc8f7f07-7560-4191-aa2e-8f274a1c29e7202046-1-133oxp5.v8wfi"] <- "Natural_habitat"
 
 names(combined_rast[[1]]) <- "foco_aadt"
 
