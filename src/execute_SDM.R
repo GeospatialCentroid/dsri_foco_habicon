@@ -189,12 +189,13 @@ execute_SDM <- function(species,
   if (null_models) {
     final_output <- c(
       final_output,
-      null_models = null.emp.results(null_mod),
-      null_model_plots = evalplot.nulls(
-        null_mod,
-        stats = c("or.10p", "auc.val", "cbi.val"),
-        plot.type = "histogram"
-      )
+      null_mods = null_mod
+      # null_models = null.emp.results(null_mod),
+      # null_model_plots = evalplot.nulls(
+      #   null_mod,
+      #   stats = c("or.10p", "auc.val", "cbi.val"),
+      #   plot.type = "histogram"
+      # )
     )
   }
   
