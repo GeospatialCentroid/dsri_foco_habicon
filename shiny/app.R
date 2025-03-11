@@ -12,7 +12,7 @@ library(shinyWidgets)
 # patch priority
 patch_maps <- map(
   list.files(
-    "data/output_habicon/",
+    "app_data/output_habicon/",
     pattern = "patch_priority.tif",
     full.names = TRUE
   ),
@@ -27,7 +27,7 @@ names(patch_maps) <-  map(
 # corridor priority
 corr_maps <- map(
   list.files(
-    "data/output_habicon/",
+    "app_data/output_habicon/",
     pattern = "corridor_priority.tif",
     full.names = TRUE
   ),
@@ -41,8 +41,8 @@ names(corr_maps) <-  map(
 
 
 # richness maps
-patch_all <- terra::rast("data/output_habicon/patch_priority_all.tif")
-corr_all <- terra::rast('data/output_habicon/corridor_priority_all.tif')
+patch_all <- terra::rast("app_data/output_habicon/patch_priority_all.tif")
+corr_all <- terra::rast('app_data/output_habicon/corridor_priority_all.tif')
 
 # richness palettes (patches is reactive below)
 joint_corr_pal <- colorNumeric(
@@ -53,7 +53,7 @@ joint_corr_pal <- colorNumeric(
 
 
 # census data
-load("data/acs_Larimer_2022.RData")
+load("app_data/acs_Larimer_2022.RData")
 
 ## create color palettes for each variable
 pal_list <- list(
@@ -83,7 +83,7 @@ names(var_labels) <- names(pal_list)
 
 
 # vector of species names
-species_names <- read_csv("data/species_names.csv") %>% 
+species_names <- read_csv("app_data/species_names.csv") %>% 
   # remove yellow warbler (SDM errors)
   filter(!common_name %in% "Yellow Warbler")
 
