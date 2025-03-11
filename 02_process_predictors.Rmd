@@ -8,11 +8,46 @@ date: "`r Sys.Date()`"
 
 As part of a broader pipeline for running a niche model in urban settings, this script is designed to provide a flexible process for reading in predictor variables, setting them to a consistent coordinate reference system, applying the desired processing analyses (if applicable) and cropping them to an extent of interest.
 
-## Set up environment
-
+# separate tifs
 ```{r}
-source("setup.R") 
+source("setup.R")
 
+# create a list of rasters with their corresponding lookup tables and output directories
+raster_configs <- list(
+  list(
+    raster_path = "data/input_raw/Jasmine/Fort Collins IGS 2023- Reclassified Raster FGS Removed/IGS_LC_FOCO_2023.tif",
+    lookup_table = data.frame(
+      category_value = c(0, 1),
+      land_cover = c("neg_space", "inf_greenspace")
+    ),
+    output_dir = "data/input_raw/Jasmine/Jasmine_inf_greenspace_sep"
+  ),
+  list(
+    raster_path = "data/input_raw/landcover_mchale/FC_landcover.tif",
+    lookup_table = data.frame(
+      category_value = c(1, 2, 3, 4, 5, 6, 7),
+      land_cover = c("TreeCanopy", "Grass_Shrubs", "BareSoil", "Water", "Buildings", "Roads_Railroads", "OtherPaved")
+    ),
+    output_dir = "data/input_raw/landcover_mchale/FC_landcover_sep"
+  ),
+   list(
+    raster_path = "data/input_raw/Jasmine/Fort Collins IGS 2023- Full Land Cover Classes/FGS_RM_FOCO_LC_2023.tif",
+    lookup_table = data.frame(
+      category_value = c(1, 2, 3, 4, 5, 6),
+      land_cover = c("Water", "Trees_Shrubs", "Low_Vegetation", "Barren", "Imperv_Surface", "Imperv_Roads")
+    ),
+    output_dir = "data/input_raw/Jasmine/Jasmine_lancover_sep"
+   )
+)
+
+# loop each configuration and run the function
+for (config in raster_configs) {
+  tif_sep(config$raster_path, config$lookup_table, config$output_dir)
+}
+
+```
+## Set up environment
+```{r}
 # read in spatial layer that includes full extent of interest, in this case a boundary .shp
 aoi <- read_sf("data/nature_in_the_city/gis/ft_collins_GMA_boundary.shp")
 

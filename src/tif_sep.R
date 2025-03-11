@@ -15,47 +15,57 @@
 #'
 #' @return A spatraster with crs and ext that is consistent with template and res that is set to desired resolution
 
-tif_sep <- function(raster_path, lookup_table, output_path) {
-  # read in McHale raster
+tif_sep <- function(raster_path, lookup_table, output_path, save = TRUE) {
+  # check if output path exists, create if not
+  if (save) {
+    if (!dir.exists(output_path)) {
+      dir.create(output_path, recursive = TRUE)
+      print(paste("Created directory:", output_path))
+    }
+  }
+  
+  # read in raster
   raster_data <- rast(raster_path)
   
   # create list to store values
   layer_list <- list()
   
-  # get unique values
-  unique_values <- terra::freq(raster_data)$value
+  # get unique values, removing NA
+  unique_values <- na.omit(terra::freq(raster_data)$value)
   
   # loop through each unique value and create separate layers
   for (value in unique_values) {
     # run check if the value exists in the lookup table
     if (value %in% lookup_table$category_value) {
-      #  binary numeric raster for each category 
-      category_layer <- classify(raster_data == value, cbind(TRUE, 1), others = NA)
+      # binary numeric raster for each category
+      category_layer <- ifel(raster_data == value, 1, NA)
       
       # assign name to each layer based on lookup table
       category_name <- paste0("lc_", lookup_table$land_cover[lookup_table$category_value == value])
       
-      # Check if the length of the name is valid for the raster layer
-      print(paste("Category:", value, "Name:", category_name))  # Debugging output
+      # sanitize category name
+      category_name <- gsub("[^a-zA-Z0-9_]", "_", category_name)
       
-      # Set the name of the layer using `names()` function
+      # set the name of the layer
       names(category_layer) <- category_name
       
-      # Store the layer in the list
+      # store the layer in the list
       layer_list[[category_name]] <- category_layer
     } else {
-      print(paste("Warning: No match found for value", value))  # Handle unexpected values
+      print(paste("Warning: No match found for value", value))  # handle unexpected values
     }
   }
   
-  # Optionally, write each layer to a new file
-  for (layer_name in names(layer_list)) {
-    # Ensure the output file path has the correct file extension (.tif)
-    output_path <- paste0(output_dir, "/", layer_name, ".tif")
-    
-    # Write each layer to a new file, specifying the output file path
-    writeRaster(layer_list[[layer_name]], filename = output_path, overwrite = TRUE)
-    
-    print(paste("Written:", output_path))  # Optional: Print to confirm the file was written
+  # write each layer to a new file
+  if (save) {
+    for (layer_name in names(layer_list)) {
+      # construct output file path
+      output_file <- file.path(output_path, paste0(layer_name, ".tif"))
+      
+      # write each layer to a new file
+      writeRaster(layer_list[[layer_name]], filename = output_file, overwrite = TRUE)
+      
+      print(paste("Written:", output_file))  
+    }
   }
-}
+} 
