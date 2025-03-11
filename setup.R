@@ -36,7 +36,8 @@ packages <- c(
   "ini",
   "tidycensus",
   "shiny",
-  "patchwork")
+  "patchwork",
+  "leaflegend")
 
 # tack tidyverse on the end always to keep tidyverse functions as default for function conflicts
 packages <- c(packages, "tidyverse")
