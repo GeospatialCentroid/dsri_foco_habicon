@@ -86,7 +86,8 @@ path_perccov <- c(
 )
 
 path_dist <- c("data/input_raw/Hydrology/Hydrology.shp",
-               "data/input_raw/Buildings/Buildings.shp")
+               "data/input_raw/Buildings/Buildings.shp",
+               "data/input_raw/Jasmine/Jasmine_lancover_sep/lc_Imperv_Roads.tif")
                #"data/input_raw/Traffic-Density/foCO_traffic.shp")
 
 #path_nodist <- c("data/input_raw/Traffic-Density/foCO_traffic.tif")
