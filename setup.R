@@ -31,7 +31,6 @@ packages <- c(
   "tmap",
   "spocc",
   "furrr",
-  "ENMeval",
   "SDMtune",
   "ini",
   "tidycensus",
