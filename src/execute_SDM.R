@@ -2,6 +2,8 @@
 #'
 #' This function is mostly a wrapper around `ENMeval::ENMevaluate()` and 
 #' subsequent steps laid out in the vignette: https://jamiemkass.github.io/ENMeval/articles/ENMeval-2.0-vignette.html
+#' NOTE: must be using version 2.0.5 installed from GitHub
+#' 
 #' 
 #' @param species The scientific name of the species running the models for
 #' @param occ A data frame of occurrences with only the "species, latitude, longitude" columns
@@ -34,7 +36,8 @@ execute_SDM <- function(species,
     dplyr::select(longitude, latitude)
   
   # convtert SpatRaster to RasterStack
-  preds_mod <- raster::brick(predictors)
+  #preds_mod <- raster::brick(predictors)
+  preds_mod <- predictors
   
   
   # Run Maxent ----
@@ -71,9 +74,9 @@ execute_SDM <- function(species,
   
   # Model Predictions ----
   
-  predicted_mod <- eval.predictions(all_mods)[[top_mod_args$tune.args]] %>% 
+  predicted_mod <- eval.predictions(all_mods)[[as.numeric(top_mod_args$tune.args)]] #%>% 
     #convert to terra object
-    terra::rast()
+    #terra::rast()
   
   
   # Null Models ----
@@ -82,7 +85,9 @@ execute_SDM <- function(species,
     null_mod <- ENMnulls(
     e = all_mods,
     mod.settings = list(fc = as.character(top_mod_args$fc), rm = as.numeric(top_mod_args$rm)),
-    no.iter = 100
+    no.iter = 100,
+    parallel = TRUE
+    
   )
   
   }
@@ -151,7 +156,8 @@ execute_SDM <- function(species,
   swd_obj <- prepareSWD(species = species,
                         p = occ_mod,
                         a = bg_mod,
-                        env = terra::rast(preds_mod))
+                        env = preds_mod)
+                          #terra::rast(preds_mod))
   
   
   ## Use cross validation
@@ -189,12 +195,13 @@ execute_SDM <- function(species,
   if (null_models) {
     final_output <- c(
       final_output,
-      null_models = null.emp.results(null_mod),
-      null_model_plots = evalplot.nulls(
-        null_mod,
-        stats = c("or.10p", "auc.val", "cbi.val"),
-        plot.type = "histogram"
-      )
+      null_mods = null_mod
+      # null_models = null.emp.results(null_mod),
+      # null_model_plots = evalplot.nulls(
+      #   null_mod,
+      #   stats = c("or.10p", "auc.val", "cbi.val"),
+      #   plot.type = "histogram"
+      # )
     )
   }
   

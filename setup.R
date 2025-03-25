@@ -31,16 +31,27 @@ packages <- c(
   "tmap",
   "spocc",
   "furrr",
-  "ENMeval",
   "SDMtune",
   "ini",
-  "tidycensus")
+  "tidycensus",
+  "shiny",
+  "patchwork",
+  "leaflegend")
 
 # tack tidyverse on the end always to keep tidyverse functions as default for function conflicts
 packages <- c(packages, "tidyverse")
 
 
 packageLoad(packages)
+
+# install github dev version of ENMeval to use parellization for null models
+if (!"ENMeval" %in% installed.packages() | packageVersion("ENMeval") < "2.0.5") {
+  
+  devtools::install_github("jamiemkass/ENMeval")
+
+}
+
+library("ENMeval")
 
 
 # source all functions --------------------------

@@ -27,12 +27,23 @@ aoi <- read_sf("data/ft_collins_GMA.shp")
 preds_stack <- terra::rast("data/input_processed/pred_stack.tif")
 
 # crop to aoi and remove unwanted layers
-predictors <- preds_stack[[-1]] %>% 
+predictors <- preds_stack %>%
   terra::mask(aoi)
 
-# fix long name for natural habitat
-names(predictors[[2]]) <- "Natural_habitat"
+# Create output directory
+output_dir <- paste0("data/output_sdm_", Sys.Date())
 
+if(!dir.exists(output_dir)) dir.create(output_dir)
+
+```
+
+### Choose which predictors to use
+
+```{r}
+names <- c("lc_Imperv_all","lc_Trees_Shrubs", "lc_Low_Vegetation",  "lc_inf_greenspace", "Natural_habitat" ,  "Hydrology",  "Buildings")
+
+
+predictors <- predictors[[names]]
 ```
 
 ### Convert occ coords to CRS of predictors
@@ -66,7 +77,7 @@ species_SDMs <- purrr::map(
     predictors = predictors,
     null_models = TRUE,
     save = TRUE,
-    output_path = paste0("data/output_sdm/", .x)
+    output_path = paste0(output_dir, "/", .x)
   )
 )
 
@@ -84,7 +95,7 @@ end-start
 tmap_mode("view")
 
 # read in rasters
-maps <- purrr::map(list.files("data/output_sdm/", pattern = ".tif", full.names = TRUE), terra::rast)
+maps <- purrr::map(list.files(output_dir, pattern = ".tif", full.names = TRUE), terra::rast)
 
 # change file names
 for (i in 1:length(maps)) {

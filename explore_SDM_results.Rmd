@@ -1,11 +1,160 @@
-# Workflow to explore SDM results
+# Explore SDM Results
 
-Setup and read in files
+## Setup
 
 ```{r}
 source("setup.R")
+
+# output dir
+output_dir <- "data/output_sdm_2025-03-14/"
+
+# list all directories in output_sdm
+output_dirs <- list.dirs(output_dir, recursive = FALSE)
+
+specs <- basename(output_dirs) %>% gsub(" ", "_", .)
+names(specs) <- gsub("_", " ", specs)
 ```
 
+### Load in data
+
 ```{r}
-# list all directories in output_sdm
+walk(output_dirs, ~load(list.files(.x, pattern = ".RData", full.names = TRUE), envir = .GlobalEnv))
+```
+
+# Visualize Results
+
+```{r}
+library(shiny)
+library(patchwork)
+# library(ggplot2)
+# 
+# # Load SDM results
+# output_dir <- "data/output_sdm_2025-03-03/"
+# output_dirs <- list.dirs(output_dir, recursive = FALSE)
+# specs <- basename(output_dirs)
+
+# Create UI
+ui <- fluidPage(
+  titlePanel("Species Distribution Model Viewer"),
+  sidebarLayout(
+    sidebarPanel(selectInput("species", "Select a Species:", choices = specs)),
+    mainPanel(
+      h3("Metadata"),
+      tableOutput("meta_table"),
+      h3("Model Performace"),
+      h4("Tuning Results"),
+      plotOutput("tuning_plot"),
+      h3("Null Models"),
+      p(
+        "Compare empirical results to simulated. Here hoping for empirical eval metrics that are significantly better than a null model."
+      ),
+      tableOutput("null_table"),
+      p(
+        "Plots of the null model results as a histogram. In this example, the empirical validation CBI value (solid red line) is significantly higher than random, as it is higher than the 99th quantile of the null values (dashed purple line). For reference, this plot also includes the null 95th quantile (dashed blue line) and the null mean (solid blue line)."
+      ),
+      plotOutput("null_plot"),
+      h3("Variable Importance"),
+      plotOutput("varimp_plot"),
+      h3("Response Curves"),
+      plotOutput("response_plot")
+    )
+  )
+)
+
+# Server logic
+server <- function(input, output) {
+  # observe({
+  #   species_dir <- file.path(output_dir, input$species)
+  #   rdata_files <- list.files(species_dir, pattern = "\\.RData$", full.names = TRUE)
+  #
+  #   walk(rdata_files, ~load(.x, envir = .GlobalEnv))
+  # })
+  
+  # reactive RData object
+  data <- reactive({
+    paste0(input$species, "_SDM_output")
+    
+  })
+  
+  # metadata plot
+  output$meta_table <- renderTable({
+    get(data())[["metadata"]]
+    
+    
+  })
+  
+  # tuning plots
+  output$tuning_plot <- renderPlot({
+    evalplot.stats(
+      e = get(data())[["all_mods"]],
+      stats = c("auc.diff", "cbi.val", "or.10p"),
+      color = "fc",
+      x.var = "rm",
+      error.bars = FALSE
+      #dodge = 0.5
+    )
+  })
+  
+  # null model stats
+  output$null_table <- renderTable({
+    null.emp.results(get(data())[["null_mods"]])
+    
+  })
+  
+  
+  # null model plots
+  output$null_plot <- renderPlot({
+    evalplot.nulls(
+      get(data())[["null_mods"]],
+      stats = c("or.10p", "auc.val", "cbi.val"),
+      plot.type = "histogram"
+    )
+    
+  })
+  
+  # variable importance plots
+  output$varimp_plot <- renderPlot({
+    ggplot(get(data())[["variable_importance"]], aes(
+      x = reorder(Variable, -Permutation_importance),
+      y = Permutation_importance
+    )) +
+      geom_col() +
+      geom_errorbar(aes(ymin = Permutation_importance - sd, ymax = Permutation_importance + sd),
+                    width = 0.2) +
+      xlab("") +
+      theme(axis.text.x = element_text(
+        angle = 45,
+        vjust = 1,
+        hjust = 1
+      ))
+  })
+  
+  # response curves
+  
+  # get list of variables
+  vars <- reactive({
+    get(data())[["variable_importance"]]$Variable
+  })
+  
+  rc <- reactive({
+    get(data())[["response_curves"]]
+  })
+  
+  output$response_plot <- renderPlot({
+    plots <- map(vars(),
+                 ~ ggplot(rc(), aes(
+                   x = !!sym(.x), y = !!sym(paste0("preds_", .x))
+                 )) +
+                   geom_line() +
+                   xlab(.x) +
+                   ylab("Presence Probability"))
+    
+    wrap_plots(plots, ncol = 3)
+  })
+  
+}
+
+# Run the app
+shinyApp(ui = ui, server = server)
+
 ```

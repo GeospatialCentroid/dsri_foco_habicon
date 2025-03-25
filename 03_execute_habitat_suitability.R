@@ -1,0 +1,101 @@
+#' ---
+#' title: "Run Suitability Models"
+#' author: "Caitlin Mothes"
+#' date: "`r Sys.Date()`"
+#' ---
+#' 
+#' # Run Habitat Suitability Models
+#' 
+#' ## Setup
+#' 
+## ---------------------------------------------------------------------------------------------------
+source("setup.R")
+
+#' 
+#' ## Read in and clean input files
+#' 
+## ---------------------------------------------------------------------------------------------------
+# occurrences
+occ <- read_csv("data/input_occ/final_model_occurrences.csv")# %>% 
+  # for testing keep just one species
+  #filter(species == {{species}})
+
+# AOI
+aoi <- read_sf("data/ft_collins_GMA.shp")
+
+# read in stacked predictors
+preds_stack <- terra::rast("data/input_processed/pred_stack.tif")
+
+# crop to aoi and remove unwanted layers
+predictors <- preds_stack[[-1]] %>%
+  terra::mask(aoi)
+
+# Create output directory
+output_dir <- paste0("data/output_sdm_", Sys.Date())
+
+if(!dir.exists(output_dir)) dir.create(output_dir)
+
+
+#' 
+#' ### Convert occ coords to CRS of predictors
+#' 
+## ---------------------------------------------------------------------------------------------------
+occ_prj <- occ %>%
+  st_as_sf(coords = c("longitude", "latitude"), crs = 4326) %>%
+  st_transform(crs = crs(predictors)) %>%
+  # convert back to csv of lat/long for model input
+  mutate(latitude = st_coordinates(.)[, "Y"], longitude = st_coordinates(.)[, "X"]) %>%
+  dplyr::select(species, longitude, latitude) %>%
+  st_drop_geometry()
+
+#' 
+#' ### Get string of species names
+#' 
+## ---------------------------------------------------------------------------------------------------
+species <- unique(occ$species)
+
+#' 
+#' ## Run `execute_SDM()` function across species
+#' 
+## ---------------------------------------------------------------------------------------------------
+start <- Sys.time()
+
+species_SDMs <- purrr::map(
+  species,
+  ~ execute_SDM(
+    species = .x,
+    occ = occ_prj[occ_prj$species == .x,],
+    predictors = predictors,
+    null_models = TRUE,
+    save = TRUE,
+    output_path = paste0(output_dir, "/", .x)
+  )
+)
+
+# name final list with species names
+names(species_SDMs) <- species
+
+end <- Sys.time()
+
+end-start
+
+#' 
+#' ## Look at suitability maps
+#' 
+## ---------------------------------------------------------------------------------------------------
+# tmap_mode("view")
+# 
+# # read in rasters
+# maps <- purrr::map(list.files(output_dir, pattern = ".tif", full.names = TRUE), terra::rast)
+# 
+# # change file names
+# for (i in 1:length(maps)) {
+#   names(maps[[i]]) <- terra::sources(maps[[i]]) %>% str_extract(pattern = "(?<=output_sdm/).*?(?=.tif)")
+# }
+# 
+# purrr::map(
+#   maps,
+#   ~ tm_shape(.x) +
+#     tm_raster(style = "cont", palette = "inferno")
+# )
+
