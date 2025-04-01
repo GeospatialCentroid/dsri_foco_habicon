@@ -146,8 +146,6 @@ species_names <- read_csv("data/NIC_survey_occ_processed.csv") %>%
 ### Run `get_occ()` function
 
 ```{r}
-source("src/get_occ.R")
-
 # use `furrr` to run faster in parallel
 plan(multisession)
 
@@ -222,12 +220,15 @@ bombus <- get_occ("Bombus", aoi = foco_boundary)
 Join to existing occurrence dataset
 
 ```{r}
-occ <- read_csv("data/input_occ/final_model_occurrences.csv")
+occ <- read_csv("data/input_occ/final_model_occurrences.csv") %>% 
+  filter(!str_detect(species, "spp"))
 
 occ_updated <- bombus %>% dplyr::select(species,
                                         latitude = lat,
                                         longitude = long,
                                         source = prov) %>%
+  # remove NA species
+  drop_na(species) %>% 
   # edit species names to just genus
   mutate(species = paste(word(species, 1), "spp")) %>%
   # remove any duplicates
@@ -238,5 +239,5 @@ occ_updated <- bombus %>% dplyr::select(species,
 Save updated occurrences
 
 ```{r}
-write_csv(occ_updated, "data/input_occ/final_model_occurrences.csv")
+write_csv(occ_updated, paste0("data/input_occ/final_model_occurrences_", Sys.Date(), ".csv"))
 ```
