@@ -78,6 +78,9 @@ path_perccov <- c(
   # mchale layers
   "data/input_raw/landcover_mchale/FC_landcover_sep/lc_TreeCanopy.tif",
   "data/input_raw/landcover_mchale/FC_landcover_sep/lc_Grass_Shrubs.tif",
+  "data/input_raw/landcover_mchale/FC_landcover_sep/lc_BareSoil.tif",
+  "data/input_raw/landcover_mchale/FC_landcover_sep/lc_OtherPaved.tif",
+  "data/input_raw/landcover_mchale/FC_landcover_sep/lc_Roads_Railroads.tif",
   # natural habitat city layer
   "data/input_raw/Natural_Habitat/bc8f7f07-7560-4191-aa2e-8f274a1c29e7202046-1-133oxp5.v8wfi.shp"
 )
