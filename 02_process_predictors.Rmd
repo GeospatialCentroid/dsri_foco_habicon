@@ -53,13 +53,13 @@ for (config in raster_configs) {
 Combine impervious surface and impervious roads from Jasmine data
 
 ```{r}
-is <- rast("data/input_raw/Jasmine/Jasmine_lancover_sep/lc_Imperv_Roads.tif")
+is <- rast("data/input_raw/Jasmine/Jasmine_lancover_sep/lc_Imperv_Surface.tif")
 
 isr <-  rast("data/input_raw/Jasmine/Jasmine_lancover_sep/lc_Imperv_Roads.tif")
 
 is_all <- terra::merge(is, isr)
 
-writeRaster(is_all, "data/input_raw/Jasmine/Jasmine_lancover_sep/lc_Imperv_all.tif")
+writeRaster(is_all, "data/input_raw/Jasmine/Jasmine_lancover_sep/lc_Imperv_all.tif", overwrite = TRUE)
 ```
 
 ## Set up environment
