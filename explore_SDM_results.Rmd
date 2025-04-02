@@ -6,7 +6,7 @@
 source("setup.R")
 
 # output dir
-output_dir <- "data/output_sdm_2025-03-14/"
+output_dir <- "data/output_sdm_2025-04-01/"
 
 # list all directories in output_sdm
 output_dirs <- list.dirs(output_dir, recursive = FALSE)
@@ -26,7 +26,7 @@ walk(output_dirs, ~load(list.files(.x, pattern = ".RData", full.names = TRUE), e
 ```{r}
 library(shiny)
 library(patchwork)
-# library(ggplot2)
+library(DT)
 # 
 # # Load SDM results
 # output_dir <- "data/output_sdm_2025-03-03/"
@@ -40,7 +40,7 @@ ui <- fluidPage(
     sidebarPanel(selectInput("species", "Select a Species:", choices = specs)),
     mainPanel(
       h3("Metadata"),
-      tableOutput("meta_table"),
+      DTOutput("meta_table"),
       h3("Model Performace"),
       h4("Tuning Results"),
       plotOutput("tuning_plot"),
@@ -50,7 +50,7 @@ ui <- fluidPage(
       ),
       tableOutput("null_table"),
       p(
-        "Plots of the null model results as a histogram. In this example, the empirical validation CBI value (solid red line) is significantly higher than random, as it is higher than the 99th quantile of the null values (dashed purple line). For reference, this plot also includes the null 95th quantile (dashed blue line) and the null mean (solid blue line)."
+        "Plots of the null model results as a histogram. Here we are looking for the empirical validation value (solid red line) to be significantly higher than the 99th quantile of the null values (dashed purple line). For reference, this plot also includes the null 95th quantile (dashed blue line) and the null mean (solid blue line)."
       ),
       plotOutput("null_plot"),
       h3("Variable Importance"),
@@ -77,8 +77,17 @@ server <- function(input, output) {
   })
   
   # metadata plot
-  output$meta_table <- renderTable({
-    get(data())[["metadata"]]
+  output$meta_table <- renderDT({
+    get(data())[["metadata"]] %>% 
+      filter(name != "projection") %>% 
+      datatable( 
+              options = list(
+                scrollY = "400px",
+                scrollCollapse = TRUE,
+                paging = FALSE,
+                dom = "frti"  # Controls which elements appear (no pagination)
+              )
+      )
     
     
   })
@@ -107,7 +116,7 @@ server <- function(input, output) {
     evalplot.nulls(
       get(data())[["null_mods"]],
       stats = c("or.10p", "auc.val", "cbi.val"),
-      plot.type = "histogram"
+      plot.type = "violin"
     )
     
   })
@@ -158,3 +167,69 @@ server <- function(input, output) {
 shinyApp(ui = ui, server = server)
 
 ```
+
+
+# Find Best Model
+
+For each species, pull the best model of all predictor sets
+
+```{r}
+# remove Bombus for now since only one model run
+specs2 <- specs[!(specs == "Bombus_spp")]
+
+
+# get all model output folders
+outputs <- list.files("data/", pattern = "output_sdm_*", include.dirs = TRUE, full.names = TRUE)
+## keep only updated runs
+outputs <- outputs[3:length(outputs)]
+
+
+# Get all performance metrics in a single df
+model_results <- map_df(names(specs2), function(x) {
+  # get species folders
+  mods <- list.dirs(outputs) %>%
+    .[str_detect(., x)]
+  
+  
+  # for each, read in model results and save in table
+  stats <- map_df(mods, function(y) {
+    # Create new environment to avoid cluttering global environment
+    temp_env <- new.env()
+    
+    load(list.files(y, pattern = ".RData", full.names = TRUE), envir = temp_env)
+    
+    obj <- ls(temp_env)
+    
+    model_obj <- temp_env[[obj]]
+    
+    # save stats
+    one <- null.emp.results(model_obj[["null_mods"]])[6, "cbi.val"]
+    two <- model_obj$metadata %>% filter(name == "cbi.val.avg") %>% pull(value)
+    three <- model_obj$metadata %>% filter(name == "auc.diff.avg") %>% pull(value)
+    
+    tibble(
+      species = x,
+      model = y,
+      cbi_val_pvalue = one,
+      cbi_val_avg = two,
+      auc_diff_avg = three
+    )
+    
+  })
+  
+  return(stats)
+  
+})
+
+```
+
+Filter best model for each species
+```{r}
+best_models <- map_df(names(specs2), function(x) {
+  model_results %>%
+    filter(species == x) %>%
+    filter(cbi_val_pvalue <= 0.05) %>%
+    filter(cbi_val_avg == max(cbi_val_avg))
+})
+```
+
