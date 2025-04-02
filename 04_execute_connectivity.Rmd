@@ -41,10 +41,10 @@ Need to read in suitability rasters, multiply values by 10 (currently range 0-1)
 
 ```{r}
 # read in suitability files
-suitability_files <- map(list.dirs("data/output_sdm", recursive = FALSE), ~list.files(.x, pattern = ".tif", full.names = TRUE))
+suitability_files <- map(list.dirs("data/output_sdm_2025-04-01/", recursive = FALSE), ~list.files(.x, pattern = ".tif", full.names = TRUE))
 
 # calculate and save each resistance layer
-walk(suitability_files, function(x, output_path = "data/output_resistance"){
+walk(suitability_files, function(x, output_path = paste0("data/output_resistance_", Sys.Date())){
   
   file <- terra::rast(x)
   
@@ -122,7 +122,7 @@ Execute function and create ini files
 species <- map(suitability_files, ~tools::file_path_sans_ext(basename(.x)) %>% str_remove("_prediction"))
 
 # paths to resistance files (ensure same order as species vector)
-resistance_files <-  list.files("data/output_resistance/", pattern = ".tif", full.names = TRUE) %>% normalizePath()
+resistance_files <-  list.files(paste0("data/output_resistance_", Sys.Date()), pattern = ".tif", full.names = TRUE) %>% normalizePath()
 
 # execute ini function
 walk2(resistance_files, species, ~create_ini(resistance_file = .x, species = .y,
