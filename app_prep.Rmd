@@ -187,3 +187,25 @@ save(cleaned_acs, file = "shiny/data/acs_Larimer_2022.RData")
 ```
 
 *No disability data for Larimer County*
+
+## Supplemental Datasets
+```{r}
+# Natural Areas
+nat_areas <- st_read("data/supplemental_data/Natural_Areas.shp") %>% 
+  # transform
+  st_transform(4326)
+
+# Save
+st_write(nat_areas, "shiny/app_data/Natural_Areas.shp")
+
+# Parcel Owners
+parcel <- st_read("data/supplemental_data/ParcelOwner.shp")
+
+## transform and simplify
+parcel_clean <- parcel %>% 
+  ms_simplify(keep = 0.05)
+
+## save as geojson
+parcel_clean %>% st_transform(4326) %>% geojson_write(file = "shiny/app_data/parcel.geojson")
+```
+
