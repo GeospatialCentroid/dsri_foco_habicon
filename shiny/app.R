@@ -82,10 +82,15 @@ var_labels <- c(
 names(var_labels) <- names(pal_list)
 
 
+# Natural Areas
+nat_areas <- read_sf("app_data/Natural_Areas.shp") %>% 
+  st_transform(4326)
+
+
 # vector of species names
 species_names <- read_csv("app_data/species_names.csv") %>% 
   # remove yellow warbler (SDM errors)
-  filter(!common_name %in% "Yellow Warbler")
+  filter(!common_name %in% c("Yellow Warbler", "Bumblebees"))
 
 
 # NA LEGEND FIX
@@ -304,10 +309,21 @@ server <- function(input, output, session) {
       addTiles(group = "OpenStreetMap") %>% 
       addProviderTiles(providers$CartoDB.Positron, group = "CartoDB Positron") %>%
       setView(lng = -105.05, lat = 40.57, zoom = 12) %>% 
+      addPolygons(
+        data = nat_areas,
+        color = "green",
+        weight = 0.5,
+        opacity = 1,
+        group = "Natural Areas",
+        popup = ~ paste(
+          str_to_title(NA_NAME))
+      ) %>% 
       addLayersControl(
         baseGroups = c("CartoDB Positron", "OpenStreetMap"),
+        overlayGroups = c("Natural Areas"),
         options = layersControlOptions(collapsed = TRUE)
       ) %>% 
+      hideGroup("Natural Areas") %>% 
       htmlwidgets::onRender("
     function(el, x) {
       this.on('baselayerchange', function(e) {
@@ -327,65 +343,73 @@ server <- function(input, output, session) {
 
     ## SPECIES MAPS -------------------------
     
-    if(!input$model_type){
-    ## Add Species Layers
-    leafletProxy("map") %>%
-      clearShapes() %>% 
-      clearControls() %>% 
-      clearImages()
-    
-    # Add raster layers
-    if("Patches" %in% input$map_type){
-      leafletProxy("map") %>% 
-        addRasterImage(sp_patches(), 
-                       colors = sp_patch_pal(), 
-                       opacity = 0.9,
-                       group = "Patches") %>%
-        #addLegendNumeric(
-        addLegend(
-          group = "Patches",
-          pal = sp_patch_pal(),
-          values = na.omit(values(sp_patches())),
-          bins = 5,
-          title = sp_patch_title(),
-          labFormat = function(type, cuts, p) {
-            c("Low", rep("", length(cuts) - 2), "High")},
-          position = "topright"
-          #decreasing = T,
-          #labelStyle = "font-family: 'Arial'; font-size: 14px; color: #555;"
-        ) 
+    if (!input$model_type) {
+      ## Add Species Layers
+      leafletProxy("map") %>%
+        #clearShapes() %>%
+        clearGroup("Patches") %>%
+        clearGroup("Corridors") %>%
+        clearControls() %>%
+        clearImages()
       
-    }
-    
-    if("Corridors" %in% input$map_type){
-      leafletProxy("map") %>% 
-        addRasterImage(sp_corridors(), 
-                       colors = sp_corr_pal(), 
-                       opacity = 0.9,
-                       group = "Corridors") %>%
-        #addLegendNumeric(
-        addLegend(
-          group = "Corridors",
-          pal = sp_corr_pal(),
-          bins = 5,
-          values = na.omit(values(sp_corridors())),
-          title = "Corridor Priority",
-          labFormat = function(type, cuts, p) {
-            c("Low", rep("", length(cuts) - 2), "High")},
-          position = "topright"
-          #decreasing = T,
-          #labelStyle = "font-family: 'Arial'; font-size: 14px; color: #555;"
-        ) 
+      # Add raster layers
+      if ("Patches" %in% input$map_type) {
+        leafletProxy("map") %>%
+          addRasterImage(
+            sp_patches(),
+            colors = sp_patch_pal(),
+            opacity = 0.9,
+            group = "Patches"
+          ) %>%
+          #addLegendNumeric(
+          addLegend(
+            group = "Patches",
+            pal = sp_patch_pal(),
+            values = na.omit(values(sp_patches())),
+            bins = 5,
+            title = sp_patch_title(),
+            labFormat = function(type, cuts, p) {
+              c("Low", rep("", length(cuts) - 2), "High")
+            },
+            position = "topright"
+            #decreasing = T,
+            #labelStyle = "font-family: 'Arial'; font-size: 14px; color: #555;"
+          )
+        
+      }
       
-    }
+      if ("Corridors" %in% input$map_type) {
+        leafletProxy("map") %>%
+          addRasterImage(
+            sp_corridors(),
+            colors = sp_corr_pal(),
+            opacity = 0.9,
+            group = "Corridors"
+          ) %>%
+          #addLegendNumeric(
+          addLegend(
+            group = "Corridors",
+            pal = sp_corr_pal(),
+            bins = 5,
+            values = na.omit(values(sp_corridors())),
+            title = "Corridor Priority",
+            labFormat = function(type, cuts, p) {
+              c("Low", rep("", length(cuts) - 2), "High")
+            },
+            position = "topright"
+            #decreasing = T,
+            #labelStyle = "font-family: 'Arial'; font-size: 14px; color: #555;"
+          )
+        
+      }
       
       # remove species maps if neither box is checked
-      if(is.null(input$map_type)){
-        leafletProxy("map") %>% 
+      if (is.null(input$map_type)) {
+        leafletProxy("map") %>%
           clearGroup(c("Patches", "Corridors"))
         
       }
-  }
+    }
     
     ## JOINT MAPS -----------------
     
@@ -451,7 +475,7 @@ server <- function(input, output, session) {
       if (input$show_pcnt & input$socio_layers %in% c("housing_burden", "racial_minority", "low_income")) {
         
         leafletProxy("map") %>%
-          clearShapes() %>%
+          clearGroup("Census Data") %>%
           addPolygons(
             data = cleaned_acs,
             fillColor = ~ pal_list[[paste0("percent_", input$socio_layers)]](get(paste0("percent_", input$socio_layers))),
@@ -479,7 +503,7 @@ server <- function(input, output, session) {
       } else {
       
       leafletProxy("map") %>%
-        clearShapes() %>%
+        clearGroup("Census Data") %>%
         addPolygons(
           data = cleaned_acs,
           fillColor = ~ pal_list[[input$socio_layers]](get(input$socio_layers)),
@@ -508,7 +532,7 @@ server <- function(input, output, session) {
     } else {
       
       leafletProxy("map") %>%
-        clearShapes() 
+        clearGroup("Census Data") 
     }
     
    
