@@ -18,14 +18,39 @@ library(habicon)
 
 ```{r}
 # suitability
-suit_maps <- map(list.dirs("data/output_sdm", recursive = FALSE), ~list.files(.x, pattern = ".tif", full.names = TRUE)) %>% 
-  map(~terra::rast(.x))
+suit_maps <- map(
+  list.dirs("data/output_sdm_2025-04-01/", recursive = FALSE),
+  ~ list.files(.x, pattern = ".tif", full.names = TRUE)
+) %>%
+  map(function(x) {
+    r <- terra::rast(x)
+    crs(r) <- "EPSG:26913"
+    
+    return(r)
+  })
 
 # connectivity
-corr_maps <- map(list.dirs("data/output_connectivity/", recursive = FALSE), ~terra::rast(paste0(.x, "/cum_currmap.tif")))
+con_dirs <- list.dirs("data/output_connectivity/", recursive = FALSE)
+
+## pull max date
+max_date <-  str_extract(con_dirs, "\\d{4}-\\d{2}-\\d{2}") %>% max(.)
+
+corr_maps <- map(con_dirs[str_detect(con_dirs, max_date)], function(x) {
+  r <- terra::rast(paste0(x, "/cum_currmap.tif"))
+  crs(r) <- "EPSG:26913"
+  return(r)
+})
 
 # resistance layers used for connectivity
-resist_maps <-  map(list.files("data/output_resistance/", pattern = ".tif", full.names = TRUE), ~terra::rast(.x))
+resist_maps <-  map(list.files(
+  "data/output_resistance_2025-04-02//",
+  pattern = ".tif",
+  full.names = TRUE
+), function(x) {
+  r <- terra::rast(x)
+  crs(r) <- "EPSG:26913"
+  return(r)
+})
 ```
 
 ### Set up parameters
@@ -41,15 +66,15 @@ species <- map(suit_maps,
 )
 
 ## path to save outputs
-output_path <- "data/output_habicon"
+output_path <- paste0("data/output_habicon_", Sys.Date())
 
 if(!dir.exists(output_path)) {
   dir.create(output_path)
 }
 
 
-# Species Dispersal Distances (retrieved from NIC 2019 report)
-distance <- c(422, 3219, 805, 281, 305, 16093)
+# Species Dispersal Distances (retrieved from NIC 2019 report) CHECK ORDER
+distance <- c(422, 1300, 3219, 805, 281, 305, 16093)
 ```
 
 ## Prep Maps
