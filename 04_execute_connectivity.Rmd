@@ -180,3 +180,88 @@ map(cum_maps, ~tm_shape(.x) + tm_raster(style = "cont"))
 
 map(norm_maps, ~tm_shape(.x) + tm_raster(style = "cont"))
 ```
+
+## Rerun for specific species:
+
+Read in suitability and create resistance file
+
+```{r}
+# read in suitability files
+suitability_files <- map(list.dirs("data/output_sdm_2025-03-03/", recursive = FALSE), ~list.files(.x, pattern = ".tif", full.names = TRUE))
+
+## filter to specific species
+suitability_files <- suitability_files[[7]]
+
+# calculate and save each resistance layer
+walk(suitability_files, function(x, output_path = paste0("data/output_resistance_", Sys.Date())){
+  
+  file <- terra::rast(x)
+  
+  # raster math
+  file_convert <- 10 - file * 10 + 1
+  
+  # save
+  if(!dir.exists(output_path)) {
+    dir.create(output_path)
+  }
+  
+  ## get file name
+  file_name <- tools::file_path_sans_ext(basename(x))
+  writeRaster(file_convert, paste0(output_path, "/", file_name, "_resistance.tif"), overwrite = TRUE)
+  
+})
+```
+
+Define ini
+
+```{r}
+# species to map over
+species <- map(suitability_files, ~tools::file_path_sans_ext(basename(.x)) %>% str_remove("_prediction"))
+
+# paths to resistance files (ensure same order as species vector)
+resistance_files <-  list.files(paste0("data/output_resistance_", Sys.Date()), pattern = ".tif", full.names = TRUE) %>% normalizePath()
+
+# execute ini function
+walk2(
+  resistance_files,
+  species,
+  ~ create_ini(
+    resistance_file = .x,
+    species = .y,
+    project_name = paste0(normalizePath(paste0(
+      "data/output_connectivity/"
+    )), "/", .y, "_", Sys.Date()),
+    ini_path = paste0("ini_", Sys.Date(), "/")
+  )
+)
+
+```
+
+Now rerun in Julia as above
+
+```{julia}
+using Omniscape
+using Glob  # For easier file pattern matching
+
+# Define the folder containing the .ini files
+folder_path = "/Users/caitlinmothes/Desktop/dsri_foco_habicon/ini_2025-04-08"
+
+# List all .ini files in the specified folder
+ini_files = glob("*.ini", folder_path)
+
+# Function to process each .ini file
+function process_ini_files(files)
+    for ini_file in files
+        println("Processing: ", ini_file)
+        try
+            run_omniscape(ini_file)
+        catch e
+            println("Error processing file ", ini_file, ": ", e)
+        end
+    end
+end
+
+# Run the function on the list of .ini files
+process_ini_files(ini_files)
+
+```

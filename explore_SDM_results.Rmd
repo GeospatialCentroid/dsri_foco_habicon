@@ -168,7 +168,6 @@ shinyApp(ui = ui, server = server)
 
 ```
 
-
 # Find Best Model
 
 For each species, pull the best model of all predictor sets
@@ -224,6 +223,7 @@ model_results <- map_df(names(specs2), function(x) {
 ```
 
 Filter best model for each species
+
 ```{r}
 best_models <- map_df(names(specs2), function(x) {
   model_results %>%
@@ -232,4 +232,3 @@ best_models <- map_df(names(specs2), function(x) {
     filter(cbi_val_avg == max(cbi_val_avg))
 })
 ```
-
