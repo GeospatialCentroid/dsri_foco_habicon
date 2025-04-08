@@ -204,3 +204,87 @@ walk2(corridors, species, function(x, y) {
 })
 
 ```
+
+# Rerun for certain species
+
+## Painted Lady
+
+Define parameters
+
+```{r}
+suit_map <- terra::rast("data/output_sdm_2025-03-03/Vanessa cardui/Vanessa_cardui_prediction.tif")
+crs(suit_map) <- "EPSG:26913"
+
+corr_map <- terra::rast("data/output_connectivity/Vanessa_cardui_2025-04-08/cum_currmap.tif")
+
+crs(corr_map) <- "EPSG:26913"
+
+resist_map <- terra::rast("data/output_resistance_2025-04-08/Vanessa_cardui_prediction_resistance.tif")
+crs(resist_map) <- "EPSG:26913"
+
+
+## create bin maps
+suit_bin <-  bin_map(suit_map, threshold = quantile(terra::values(suit_map, na.rm = TRUE), 0.85))
+
+corr_bin <- bin_map(corr_map, threshold = quantile(terra::values(corr_map, na.rm = TRUE), 0.85))
+
+
+## species name vector
+species <- terra::sources(suit_map) %>%
+    basename() %>%
+    tools::file_path_sans_ext() %>% str_remove("_prediction")
+
+## path to save outputs
+output_path <- paste0("data/output_habicon_", Sys.Date())
+
+if(!dir.exists(output_path)) {
+  dir.create(output_path)
+}
+```
+
+#### Patch Priority
+
+```{r}
+v_carduri_patches <- patch_priority(
+    suit = suit_map,
+    suit_bin = suit_bin,
+    corr_bin = corr_bin,
+    resist = resist_map,
+    d = 16093,
+    progress = TRUE
+  )
+```
+
+#### Corridor Priority
+
+```{r}
+v_carduri_corr <- corr_priority(
+    suit = suit_map,
+    suit_bin = suit_bin,
+    corr_bin = corr_bin,
+    resist = resist_map,
+    d = 16093,
+    progress = TRUE
+  )
+```
+
+#### Save outputs
+
+```{r}
+# save patch priority raster stack
+keep(v_carduri_patches, ~ inherits(.x, "SpatRaster")) %>%
+  rast() %>%
+  writeRaster(
+    filename = paste0(output_path, "/", species, "_patch_priority.tif"),
+    overwrite = TRUE
+  )
+
+# save data frames
+keep(v_carduri_patches, ~ inherits(.x, "data.frame")) %>%
+  bind_rows() %>%
+  write_csv(file = paste0(output_path, "/", species, "_patch_priority_table.csv"))
+
+# Save corr priority raster
+terra::set.names(v_carduri_corr, paste0(species, "_corr_priority"))
+writeRaster(v_carduri_corr, filename = paste0(output_path, "/", species, "_corridor_priority.tif"), overwrite = TRUE)
+```
