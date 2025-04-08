@@ -4,26 +4,64 @@
 source("setup.R")
 ```
 
-## Priority Maps
+## App Maps
 
-Create species richness maps
+#### Patches
 
 ```{r}
-# patch priority
+# app patch maps
 patch_maps <- map(
   list.files(
-    "data/output_habicon/",
+    "data/output_habicon_2025-04-03/",
     pattern = "patch_priority.tif",
     full.names = TRUE
   ),
   terra::rast
 )
 
+## replace V. cardui update
+patch_maps[[8]] <- terra::rast("data/output_habicon_2025-04-08/Vanessa_cardui_patch_priority.tif")
+
+
+# save to app
+map(patch_maps, ~writeRaster(.x, filename = paste0("shiny/app_data/output_habicon/", tools::file_path_sans_ext(basename(sources(.x))), ".tif"), overwrite = TRUE))
+```
+
+#### Corridors
+
+```{r}
+# app patch maps
+corr_maps <- map(
+  list.files(
+    "data/output_habicon_2025-04-03/",
+    pattern = "corridor_priority.tif",
+    full.names = TRUE
+  ),
+  terra::rast
+)
+
+## replace V. cardui update
+corr_maps[[8]] <- terra::rast("data/output_habicon_2025-04-08/Vanessa_cardui_corridor_priority.tif")
+
+
+# save to app
+map(corr_maps, ~writeRaster(.x, filename = paste0("shiny/app_data/output_habicon/", tools::file_path_sans_ext(basename(sources(.x))), ".tif"), overwrite = TRUE))
+```
+
+# Richness Maps
+
+```{r}
 ## rescale values to sum all together
 rescale_function <- function(x) {
   map(names(x), ~ x[[.x]] %>% habicon::rescale_map()) %>% 
     do.call(c, .)
 }
+
+# patch priority
+
+## V Cardui is is different extent...
+patch_maps[[8]] <- patch_maps[[8]] %>% 
+  resample(patch_maps[[1]])
 
 patch_rescale <- map(patch_maps, rescale_function) %>%
   # reduce to single spatraster
@@ -41,14 +79,10 @@ patch_sum <- map(c("qwa", "btwn", "dECA"), function(x) {
 
 
 # corridor priority
-corr_maps <- map(
-  list.files(
-    "data/output_habicon/",
-    pattern = "corridor_priority.tif",
-    full.names = TRUE
-  ),
-  terra::rast
-)
+
+# V cardui match extent
+corr_maps[[8]] <- corr_maps[[8]] %>% 
+  resample(corr_maps[[1]])
 
 ## rescale values and sum all together
 corr_sum <- map(corr_maps, habicon::rescale_map) %>%
@@ -58,11 +92,9 @@ corr_sum <- map(corr_maps, habicon::rescale_map) %>%
 
 
 # save
-writeRaster(patch_sum, "data/output_habicon/patch_priority_all.tif", overwrite = TRUE)
-writeRaster(patch_sum, "shiny/data/output_habicon/patch_priority_all.tif", overwrite = TRUE)
+writeRaster(patch_sum, "shiny/app_data/output_habicon/patch_priority_all.tif", overwrite = TRUE)
 
-writeRaster(corr_sum, "data/output_habicon/corridor_priority_all.tif", overwrite = TRUE)
-writeRaster(corr_sum, "shiny/data/output_habicon/corridor_priority_all.tif", overwrite = TRUE)
+writeRaster(corr_sum, "shiny/app_data/output_habicon/corridor_priority_all.tif", overwrite = TRUE)
 ```
 
 ## Census Data
@@ -189,6 +221,7 @@ save(cleaned_acs, file = "shiny/data/acs_Larimer_2022.RData")
 *No disability data for Larimer County*
 
 ## Supplemental Datasets
+
 ```{r}
 # Natural Areas
 nat_areas <- st_read("data/supplemental_data/Natural_Areas.shp") %>% 
@@ -208,4 +241,3 @@ parcel_clean <- parcel %>%
 ## save as geojson
 parcel_clean %>% st_transform(4326) %>% geojson_write(file = "shiny/app_data/parcel.geojson")
 ```
-
