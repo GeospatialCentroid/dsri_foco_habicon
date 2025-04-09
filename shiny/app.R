@@ -88,9 +88,12 @@ nat_areas <- read_sf("app_data/Natural_Areas.shp") %>%
 
 
 # vector of species names
-species_names <- read_csv("app_data/species_names.csv") %>% 
-  # remove yellow warbler (SDM errors)
-  filter(!common_name %in% c("Yellow Warbler", "Bumblebees"))
+species_names <- read_csv("app_data/species_names.csv")
+
+species_vect <- column_to_rownames(species_names, var = "common_name")
+
+## model results
+#map(list.files("app_data/output_sdm/", full.names = TRUE), ~load(.x, envir = .GlobalEnv))
 
 
 # NA LEGEND FIX
@@ -101,7 +104,7 @@ html_fix <- as.character(htmltools::tags$style(type = "text/css", css_fix))
 # UI ------------------------------------------------------
 ui <- navbarPage(
   id = "nav",
-  title = "Fort Collins Conservation Decision Support Tool",
+  title = HTML("Fort Collins Decision Support Tool <em>(beta version)</em>"),
   theme = bs_theme(bootswatch = "litera"),
   
   tabPanel(
@@ -212,19 +215,154 @@ ui <- navbarPage(
           HTML(html_fix)
         ),
         
-        card(
-          height = "400px",
-          card_header("Area Statistics"),
-          div(style = "padding: 15px;", textOutput("stats_text")),
-          div(style = "height: 300px; padding: 15px;", plotOutput("priority_plot", height = "100%"))
-        )
+        # card(
+        #   height = "400px",
+        #   card_header("Area Statistics"),
+        #   div(style = "padding: 15px;", textOutput("stats_text")),
+        #   div(style = "height: 300px; padding: 15px;", plotOutput("priority_plot", height = "100%"))
+        # )
       )
     )
   ),
-  tabPanel(title = "About"),
+  # ABOUT TAB -------------
+  tabPanel(
+    title = "About",
+    # Overview Section
+    card(id = "overview_section", card_header(h3("Project Overview")), card_body(
+      p(
+        "Our team has developed a reproducible data science pipeline that can model spatially
+              explicit habitat priorities across any species, area and time frame.
+              This novel methodology simultaneously considers both habitat suitability
+              and connectivity characteristics to calculate land prioritization maps.
+              This tool demonstrates our first application of these methods, mapping priority areas and corridors
+              for several species of interest within the City of Fort Collins.
+              This interactive web application also allows for integration of these
+              species priority maps with various spatial socioeconomic and demographic
+              datasets for the city. The main goal of this decision-support tool is to make
+              these findings more accessible to policymakers, stakeholders, and the public
+              to better facilitate land use planning decisions and promote a socially equitable decision-making process."
+      ),
+    )),
+    # Goals Section
+    card(id = "goals_section", card_header(h3("Goals & Objectives")), card_body(
+      p(
+        "Develop a co-benefits (to people and biodiversity) approach to land-use planning by:"
+      ),
+      tags$ul(
+        tags$li(
+          "Developing a quantitative, scalable pipeline for prioritizing species landscape connectivity."
+        ),
+        tags$li(
+          "Integrating spatial landscape priority data with sociodemographic and economic data to promote a socially equitable decision-making process."
+        )
+      ),
+    )),
+    
+    # Team Section
+    card(id = "team_section", card_header(
+      h3("Colorado State University Research Team")
+    ), card_body(
+      div(
+        style = "margin-bottom: 20px;",
+        h5("Principal Investigator:"),
+        p("Caitlin Mothes, PhD, Geospatial Centroid"),
+      ), div(
+        h5("Co-Investigators:"),
+        p(
+          "Sara Bombaci, Department of Fish, Wildlife and Conservation Biology"
+        ),
+        p(
+          "Liba Pejchar, Department of Fish, Wildlife and Conservation Biology"
+        )
+      )
+    ), div(
+      h5("Student Contributors:"),
+      p(
+        "Mikko Jimenez, Ph.D. Candidate, Department of Fish, Wildlife and Conservation Biology and Graduate Degree Program in Ecology"
+      ),
+    )),
+    
+    # Funding Section
+    card(id = "funding_section", card_header(h3("Funding & Support")), card_body(
+      p(
+        "This project was funded by CSU's Data Science Research Institute (DSRI) DISCOVER Seed Grant."
+      ),
+      div(
+        style = "margin-top: 20px; text-align: center;",
+        div(style = "display: flex; justify-content: left; flex-wrap: wrap; gap: 100px;", #div(img(src = "path/to/partner1/logo.png", height = "60px")),
+            div(
+              img(src = "dsri_logo.png", height = "100px")
+            ), # div(img(src = "path/to/partner3/logo.png", height = "60px")))
+        )
+      ))),
+      
+      # Contact Section
+      card(id = "contact_section", card_header(h3(
+        "Contact Information"
+      )), card_body(
+        p("For questions about this project or tool, please contact:"),
+        p(
+          strong("Project Lead:"),
+          " Caitlin Mothes, ccmothes@colostate.edu"
+        ),
+        
+        hr(),
+        # p("To cite this tool:"),
+        # p(em("Author(s) (Year). Fort Collins Conservation Decision Support Tool. Institution. URL"))
+      ))
+    ), 
+
+  tabPanel(title = "Methods",
+           card(id = "glossary", card_header(h3("Glossary")), card_body(
+             tags$ul(
+               tags$li(
+                 strong("Quality-Weighted Area"), ": The area of the patch multiplied by the average habitat suitability of the patch."
+               ),
+               tags$li(
+                 strong("Betweenness Centrality"), ": The ability for the patch to serve as a stepping stone habitat weighted by the distance among patches."
+               ),
+               tags$li(
+                 strong("Equivalent Connectivity"), ": Patch importance based on equivalent connectivity (Saura et al. 2011),
+                 calculated as the difference in equivalent connecitivty of the entire landscape if the patch is removed. This metric represents 
+                 a patch’s importance to the total amount and quality of reachable habitat in the landscape."
+               )
+             ),
+           )
+           ),
+           ),
   
-  tabPanel(title = "Methods"),
-  tabPanel(title = "Species Model Results")
+  # SDM Results --------------
+  # tabPanel(title = "Species Model Results",
+  #          sidebarLayout(
+  #            sidebarPanel(width = 3,
+  #              selectInput(
+  #                "sdm_species",
+  #                "Select a Species:",
+  #                choices = species_vect
+  #              ),
+  #            ),              
+  #            mainPanel(
+  #              h3("Metadata"),
+  #              DTOutput("meta_table"),
+  #              h3("Model Performace"),
+  #              h4("Tuning Results"),
+  #              plotOutput("tuning_plot"),
+  #              h3("Null Models"),
+  #              p(
+  #                "Compare empirical results to simulated. Looking for empirical evaluation metrics that are significantly better than a null model."
+  #              ),
+  #              tableOutput("null_table"),
+  #              p(
+  #                "Plots of the null model results. Looking for the empirical validation value (red point) to be significantly higher than the 99th quantile of the null values (first line in the violin plot)."
+  #              ),
+  #              plotOutput("null_plot"),
+  #              h3("Variable Importance"),
+  #              plotOutput("varimp_plot"),
+  #              h3("Response Curves"),
+  #              plotOutput("response_plot")
+  #            )
+  #          )
+  # )
 )
 
 
@@ -540,6 +678,99 @@ server <- function(input, output, session) {
   })
   
   
+  # ### SDM RESULTS -----------------
+  # # reactive RData object
+  # sdm_data <- reactive({
+  #   paste0(input$sdm_species, "_SDM_output")
+  #   
+  # })
+  # 
+  # # metadata plot
+  # output$meta_table <- renderDT({
+  #   get(sdm_data())[["metadata"]] %>% 
+  #     filter(name != "projection") %>% 
+  #     datatable( 
+  #       options = list(
+  #         scrollY = "400px",
+  #         scrollCollapse = TRUE,
+  #         paging = FALSE,
+  #         dom = "frti"  # Controls which elements appear (no pagination)
+  #       )
+  #     )
+  #   
+  #   
+  # })
+  # 
+  # # tuning plots
+  # output$tuning_plot <- renderPlot({
+  #   evalplot.stats(
+  #     e = get(sdm_data())[["all_mods"]],
+  #     stats = c("auc.diff", "cbi.val", "or.10p"),
+  #     color = "fc",
+  #     x.var = "rm",
+  #     error.bars = FALSE
+  #     #dodge = 0.5
+  #   )
+  # })
+  # 
+  # # null model stats
+  # output$null_table <- renderTable({
+  #   null.emp.results(get(sdm_data())[["null_mods"]])
+  #   
+  # })
+  # 
+  # 
+  # # null model plots
+  # output$null_plot <- renderPlot({
+  #   evalplot.nulls(
+  #     get(sdm_data())[["null_mods"]],
+  #     stats = c("or.10p", "auc.val", "cbi.val"),
+  #     plot.type = "violin"
+  #   )
+  #   
+  # })
+  # 
+  # # variable importance plots
+  # output$varimp_plot <- renderPlot({
+  #   ggplot(get(sdm_data())[["variable_importance"]], aes(
+  #     x = reorder(Variable, -Permutation_importance),
+  #     y = Permutation_importance
+  #   )) +
+  #     geom_col() +
+  #     geom_errorbar(aes(ymin = Permutation_importance - sd, ymax = Permutation_importance + sd),
+  #                   width = 0.2) +
+  #     xlab("") +
+  #     theme(axis.text.x = element_text(
+  #       angle = 45,
+  #       vjust = 1,
+  #       hjust = 1
+  #     ))
+  # })
+  # 
+  # # response curves
+  # 
+  # # get list of variables
+  # vars <- reactive({
+  #   get(sdm_data())[["variable_importance"]]$Variable
+  # })
+  # 
+  # rc <- reactive({
+  #   get(sdm_data())[["response_curves"]]
+  # })
+  # 
+  # output$response_plot <- renderPlot({
+  #   plots <- map(vars(),
+  #                ~ ggplot(rc(), aes(
+  #                  x = !!sym(.x), y = !!sym(paste0("preds_", .x))
+  #                )) +
+  #                  geom_line() +
+  #                  xlab(.x) +
+  #                  ylab("Presence Probability"))
+  #   
+  #   wrap_plots(plots, ncol = 3)
+  # })
+  # 
+  # 
   
 
     # # Statistics output

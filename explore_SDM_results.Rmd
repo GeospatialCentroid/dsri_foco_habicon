@@ -6,7 +6,7 @@
 source("setup.R")
 
 # output dir
-output_dir <- "data/output_sdm_2025-04-01/"
+output_dir <- "data/output_sdm_2025-03-03/"
 
 # list all directories in output_sdm
 output_dirs <- list.dirs(output_dir, recursive = FALSE)
