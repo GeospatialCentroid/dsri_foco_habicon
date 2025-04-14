@@ -16,7 +16,7 @@ source("setup.R")
 
 ```{r}
 # occurrences
-occ <- read_csv("data/input_occ/final_model_occurrences.csv")# %>% 
+occ <- read_csv("data/input_occ/final_model_occurrences_2025-04-01.csv")# %>% 
   # for testing keep just one species
   #filter(species == {{species}})
 
@@ -40,7 +40,16 @@ if(!dir.exists(output_dir)) dir.create(output_dir)
 ### Choose which predictors to use
 
 ```{r}
-names <- c("lc_Imperv_all","lc_Trees_Shrubs", "lc_Low_Vegetation",  "lc_inf_greenspace", "Natural_habitat" ,  "Hydrology",  "Buildings")
+names <- c(
+  "lc_inf_greenspace",
+  "Natural_habitat",
+  "Hydrology",
+  "Buildings",
+  "lc_TreeCanopy",
+  "lc_Grass_Shrubs",
+  "lc_OtherPaved",
+  "lc_Roads_Railroads"
+)
 
 
 predictors <- predictors[[names]]

@@ -53,13 +53,13 @@ for (config in raster_configs) {
 Combine impervious surface and impervious roads from Jasmine data
 
 ```{r}
-is <- rast("data/input_raw/Jasmine/Jasmine_lancover_sep/lc_Imperv_Roads.tif")
+is <- rast("data/input_raw/Jasmine/Jasmine_lancover_sep/lc_Imperv_Surface.tif")
 
 isr <-  rast("data/input_raw/Jasmine/Jasmine_lancover_sep/lc_Imperv_Roads.tif")
 
 is_all <- terra::merge(is, isr)
 
-writeRaster(is_all, "data/input_raw/Jasmine/Jasmine_lancover_sep/lc_Imperv_all.tif")
+writeRaster(is_all, "data/input_raw/Jasmine/Jasmine_lancover_sep/lc_Imperv_all.tif", overwrite = TRUE)
 ```
 
 ## Set up environment
@@ -78,12 +78,16 @@ path_perccov <- c(
   # mchale layers
   "data/input_raw/landcover_mchale/FC_landcover_sep/lc_TreeCanopy.tif",
   "data/input_raw/landcover_mchale/FC_landcover_sep/lc_Grass_Shrubs.tif",
+  "data/input_raw/landcover_mchale/FC_landcover_sep/lc_BareSoil.tif",
+  "data/input_raw/landcover_mchale/FC_landcover_sep/lc_OtherPaved.tif",
+  "data/input_raw/landcover_mchale/FC_landcover_sep/lc_Roads_Railroads.tif",
   # natural habitat city layer
   "data/input_raw/Natural_Habitat/bc8f7f07-7560-4191-aa2e-8f274a1c29e7202046-1-133oxp5.v8wfi.shp"
 )
 
 path_dist <- c("data/input_raw/Hydrology/Hydrology.shp",
-               "data/input_raw/Buildings/Buildings.shp")
+               "data/input_raw/Buildings/Buildings.shp",
+               "data/input_raw/Jasmine/Jasmine_lancover_sep/lc_Imperv_Roads.tif")
                #"data/input_raw/Traffic-Density/foCO_traffic.shp")
 
 #path_nodist <- c("data/input_raw/Traffic-Density/foCO_traffic.tif")

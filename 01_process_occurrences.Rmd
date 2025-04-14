@@ -146,8 +146,6 @@ species_names <- read_csv("data/NIC_survey_occ_processed.csv") %>%
 ### Run `get_occ()` function
 
 ```{r}
-source("src/get_occ.R")
-
 # use `furrr` to run faster in parallel
 plan(multisession)
 
@@ -207,4 +205,39 @@ write_csv(final_occ, "data/input_occ/final_model_occurrences.csv")
 species_names <- tibble(scientific_name = c("Agelaius_phoeniceus", "Colias_eurytheme", "Colias_philodice", "Setophaga_petechia", "Sturnella_neglecta", "Tyrannus_verticalis",  "Vanessa_cardui"), common_name = c("Red-winged Blackbird", "Orange Sulphur", "Clouded Sulphur", "Yellow Warbler", "Western Meadowlark", "Western Kingbird", "Painted Lady"))
 
 write_csv(species_names, "data/species_names.csv")
+```
+
+# Add Species
+
+**Add *Bombus* species to models**
+
+Get occurrences
+
+```{r}
+bombus <- get_occ("Bombus", aoi = foco_boundary)
+```
+
+Join to existing occurrence dataset
+
+```{r}
+occ <- read_csv("data/input_occ/final_model_occurrences.csv") %>% 
+  filter(!str_detect(species, "spp"))
+
+occ_updated <- bombus %>% dplyr::select(species,
+                                        latitude = lat,
+                                        longitude = long,
+                                        source = prov) %>%
+  # remove NA species
+  drop_na(species) %>% 
+  # edit species names to just genus
+  mutate(species = paste(word(species, 1), "spp")) %>%
+  # remove any duplicates
+  distinct(longitude, latitude, .keep_all = TRUE) %>%
+  bind_rows(occ)
+```
+
+Save updated occurrences
+
+```{r}
+write_csv(occ_updated, paste0("data/input_occ/final_model_occurrences_", Sys.Date(), ".csv"))
 ```
