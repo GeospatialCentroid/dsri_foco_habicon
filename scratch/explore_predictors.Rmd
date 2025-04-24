@@ -139,6 +139,53 @@ qtm(foco_flowlines, lines.col = "blue") +
 
 The resolution of this isn't great...use current Fort Collins hydrology layer for now (as a placeholder) and maybe improve this data with the landcover data.
 
+Try nhdplushr data:
+```{r}
+library(nhdplusTools)
+
+## get huc
+huc <- get_huc(foco_boundary, type = "huc04")
+
+## download data to temp dir
+temp_dir <- file.path(nhdplusTools_data_dir(), "temp_hr_cache")
+
+download_dir <- download_nhdplushr(temp_dir, hu_list = huc$huc4)
+
+# read in files
+file <- list.files(download_dir,
+                   pattern = paste0(huc$huc4, "_HU4_GDB.gdb"),
+                   full.names = TRUE)
+
+flowlines <- sf::st_read(dsn = file, layer = "NHDFlowline") %>%
+  st_zm() %>%
+  # filter to fort collins
+  st_transform(crs(foco_boundary)) %>%
+  st_filter(st_buffer(foco_boundary, 1000))
+
+waterbodies <- sf::st_read(dsn = file, layer = "NHDWaterbody") %>%
+  st_zm() %>%
+  st_make_valid() %>%
+  st_transform(crs(foco_boundary)) %>%
+  st_filter(st_buffer(foco_boundary, 1000))
+
+## save
+st_write(flowlines, "data/input_raw/Hydrology/nhdplushr_flowlines.shp")
+st_write(waterbodies, "data/input_raw/Hydrology/nhdplushr_waterbodies.shp")
+
+# Cleanup
+unlink(temp_dir, recursive = TRUE)
+
+
+```
+
+Compare to Larimer county water layer
+```{r}
+lakes <- st_read('data/input_raw/Hydrology/Lake.shp')
+
+streams <-  st_read('data/input_raw/Hydrology/Stream.shp')
+```
+**much less data**
+
 # Explore NIC model outputs
 
 ## Habitat use and connectivity
@@ -244,7 +291,7 @@ foco_lc_fgs_removed <- terra::rast("data/Jasmine/Fort Collins IGS 2023- Reclassi
 ## Look at just water layer:
 
 ```{r}
-water <- foco_lc
+water <- foco_lc_full
 water[water != 1] <- NA
 
 plot(water)
