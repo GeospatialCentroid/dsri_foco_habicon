@@ -10,6 +10,9 @@ As part of a broader pipeline for running a niche model in urban settings, this 
 
 ```{r}
 source("setup.R")
+
+# AOI
+aoi <- read_sf("data/ft_collins_GMA.shp")
 ```
 
 # separate tifs
@@ -62,6 +65,22 @@ is_all <- terra::merge(is, isr)
 writeRaster(is_all, "data/input_raw/Jasmine/Jasmine_lancover_sep/lc_Imperv_all.tif", overwrite = TRUE)
 ```
 
+Pull in wetland layer to replace hydrology
+
+```{r}
+library(arcpullr)
+
+#watersheds <- get_spatial_layer("https://cnhp.colostate.edu/arcgis/rest/services/Wetland_Inv/Wetlands/MapServer/0")
+aoi_wetlands <- aoi %>% 
+  st_buffer(1000) %>% 
+  st_transform(3857)
+
+wetlands <- get_layer_by_envelope("https://cnhp.colostate.edu/arcgis/rest/services/Wetland_Inv/Wetlands/MapServer/0", aoi_wetlands)
+
+# save to hydrology folder
+st_write(wetlands, "data/input_raw/Hydrology/cnhp_foco_wetlands.shp")
+```
+
 ## Set up environment
 
 ```{r}
@@ -71,7 +90,7 @@ aoi <- read_sf("data/nature_in_the_city/gis/ft_collins_GMA_boundary.shp")
 # list of paths to predictors (shapefiles, .tifs, etc.) separated by processing type
 path_perccov <- c(
   # jasmine layers
-  "data/input_raw/Jasmine/Jasmine_lancover_sep/lc_Imperv_all.tif",
+  "data/input_raw/Jasmine/Jasmine_lancover_sep/lc_Imperv_Surface.tif",
   "data/input_raw/Jasmine/Jasmine_lancover_sep/lc_Trees_Shrubs.tif",
   "data/input_raw/Jasmine/Jasmine_lancover_sep/lc_Low_Vegetation.tif",
   "data/input_raw/Jasmine/Jasmine_inf_greenspace_sep/lc_inf_greenspace.tif",
@@ -85,7 +104,7 @@ path_perccov <- c(
   "data/input_raw/Natural_Habitat/bc8f7f07-7560-4191-aa2e-8f274a1c29e7202046-1-133oxp5.v8wfi.shp"
 )
 
-path_dist <- c("data/input_raw/Hydrology/Hydrology.shp",
+path_dist <- c("data/input_raw/Hydrology/cnhp_foco_wetlands.shp",
                "data/input_raw/Buildings/Buildings.shp",
                "data/input_raw/Jasmine/Jasmine_lancover_sep/lc_Imperv_Roads.tif")
                #"data/input_raw/Traffic-Density/foCO_traffic.shp")
