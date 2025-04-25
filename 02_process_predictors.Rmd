@@ -101,12 +101,17 @@ path_perccov <- c(
   "data/input_raw/landcover_mchale/FC_landcover_sep/lc_OtherPaved.tif",
   "data/input_raw/landcover_mchale/FC_landcover_sep/lc_Roads_Railroads.tif",
   # natural habitat city layer
-  "data/input_raw/Natural_Habitat/bc8f7f07-7560-4191-aa2e-8f274a1c29e7202046-1-133oxp5.v8wfi.shp"
+  "data/input_raw/Natural_Habitat/bc8f7f07-7560-4191-aa2e-8f274a1c29e7202046-1-133oxp5.v8wfi.shp",
+  # green space
+  "data/input_raw/Green_Space/nic_green_space_2015.shp"#,
+  # natural areas
+ # "data/input_raw/Natural_Areas/Natural_Areas.shp"
 )
 
 path_dist <- c("data/input_raw/Hydrology/cnhp_foco_wetlands.shp",
                "data/input_raw/Buildings/Buildings.shp",
-               "data/input_raw/Jasmine/Jasmine_lancover_sep/lc_Imperv_Roads.tif")
+               "data/input_raw/Jasmine/Jasmine_lancover_sep/lc_Imperv_Roads.tif",
+               "data/input_raw/Natural_Areas/Natural_Areas.shp")
                #"data/input_raw/Traffic-Density/foCO_traffic.shp")
 
 #path_nodist <- c("data/input_raw/Traffic-Density/foCO_traffic.tif")
@@ -187,7 +192,27 @@ end-start
 
 ```{r}
 # stack rasters we want
-combined_rast <- c(rast(pred_perccov), rast(pred_dist))
+if(ext(pred_perccov[[1]]) != ext(pred_dist[[1]])) {
+   # Create the smaller extent
+  smaller_ext <- ext(
+    max(ext(pred_perccov[[1]])$xmin, ext(pred_dist[[1]])$xmin),
+    min(ext(pred_perccov[[1]])$xmax, ext(pred_dist[[1]])$xmax),
+    max(ext(pred_perccov[[1]])$ymin, ext(pred_dist[[1]])$ymin),
+    min(ext(pred_perccov[[1]])$ymax, ext(pred_dist[[1]])$ymax)
+  )
+  
+  # Crop both rasters to the smaller extent
+  pred_perccov <- crop(rast(pred_perccov), smaller_ext)
+  pred_dist <- crop(rast(pred_dist), smaller_ext)
+  
+  combined_rast <- c(pred_perccov, pred_dist)
+
+} else {
+  
+  ## check that extents matched
+  combined_rast <- c(rast(pred_perccov), rast(pred_dist))
+
+}
 
 # edit some of the names
 # fix long name for natural habitat
@@ -196,5 +221,5 @@ names(combined_rast)[names(combined_rast) == "bc8f7f07-7560-4191-aa2e-8f274a1c29
 #names(combined_rast[[1]]) <- "foco_aadt"
 
 # Save the predictor raster stack
-writeRaster(combined_rast, filename = file.path(output_path, "pred_stack.tif"), overwrite = TRUE)
+writeRaster(combined_rast, filename = file.path(output_path, paste0(Sys.Date(), "_pred_stack.tif")), overwrite = TRUE)
 ```
