@@ -19,7 +19,7 @@ library(habicon)
 ```{r}
 # suitability
 suit_maps <- map(
-  list.dirs("data/output_sdm_2025-04-01/", recursive = FALSE),
+  list.dirs("data/output_sdm_2025-04-24/", recursive = FALSE),
   ~ list.files(.x, pattern = ".tif", full.names = TRUE)
 ) %>%
   map(function(x) {
@@ -43,7 +43,7 @@ corr_maps <- map(con_dirs[str_detect(con_dirs, max_date)], function(x) {
 
 # resistance layers used for connectivity
 resist_maps <-  map(list.files(
-  "data/output_resistance_2025-04-02//",
+  "data/output_resistance_2025-04-25//",
   pattern = ".tif",
   full.names = TRUE
 ), function(x) {
@@ -74,7 +74,7 @@ if(!dir.exists(output_path)) {
 
 
 # Species Dispersal Distances (retrieved from NIC 2019 report) CHECK ORDER
-distance <- c(422, 1300, 3219, 805, 281, 305, 16093)
+distance <- c(422, 3300, 3219, 805, 115, 281, 305, 16093)
 ```
 
 ## Prep Maps
@@ -133,7 +133,7 @@ for (i in 1:length(species)){
     rast()
 }
 
-map(patch_maps, plot)
+map(patch_maps, terra::plot)
 ```
 
 Save:
