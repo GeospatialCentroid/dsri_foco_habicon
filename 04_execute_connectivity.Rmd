@@ -41,7 +41,7 @@ Need to read in suitability rasters, multiply values by 10 (currently range 0-1)
 
 ```{r}
 # read in suitability files
-suitability_files <- map(list.dirs("data/output_sdm_2025-04-01/", recursive = FALSE), ~list.files(.x, pattern = ".tif", full.names = TRUE))
+suitability_files <- map(list.dirs("data/output_sdm_2025-04-24/", recursive = FALSE), ~list.files(.x, pattern = ".tif", full.names = TRUE))
 
 # calculate and save each resistance layer
 walk(suitability_files, function(x, output_path = paste0("data/output_resistance_", Sys.Date())){
@@ -170,9 +170,11 @@ process_ini_files(ini_files)
 ## Inspect Maps
 
 ```{r}
-cum_maps <- map(list.dirs("data/output_connectivity/", recursive = FALSE), ~terra::rast(paste0(.x, "/cum_currmap.tif")))
+date <- "2025-04-25"
 
-norm_maps <- map(list.dirs("data/output_connectivity/", recursive = FALSE), ~terra::rast(paste0(.x, "/normalized_cum_currmap.tif")))
+cum_maps <- map(list.dirs("data/output_connectivity/", recursive = FALSE) %>% .[str_detect(., date)], ~terra::rast(paste0(.x, "/cum_currmap.tif")))
+
+norm_maps <- map(list.dirs("data/output_connectivity/", recursive = FALSE) %>% .[str_detect(., date)], ~terra::rast(paste0(.x, "/normalized_cum_currmap.tif")))
 
 
 # map them out
