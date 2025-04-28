@@ -6,7 +6,7 @@
 source("setup.R")
 
 # output dir
-output_dir <- "data/output_sdm_2025-03-03/"
+output_dir <- "data/output_sdm_2025-04-24/"
 
 # list all directories in output_sdm
 output_dirs <- list.dirs(output_dir, recursive = FALSE)
@@ -174,7 +174,7 @@ For each species, pull the best model of all predictor sets
 
 ```{r}
 # remove Bombus for now since only one model run
-specs2 <- specs[!(specs == "Bombus_spp")]
+#specs2 <- specs[!(specs == "Bombus_spp")]
 
 
 # get all model output folders
@@ -184,7 +184,7 @@ outputs <- outputs[3:length(outputs)]
 
 
 # Get all performance metrics in a single df
-model_results <- map_df(names(specs2), function(x) {
+model_results <- map_df(names(specs), function(x) {
   # get species folders
   mods <- list.dirs(outputs) %>%
     .[str_detect(., x)]
@@ -225,7 +225,7 @@ model_results <- map_df(names(specs2), function(x) {
 Filter best model for each species
 
 ```{r}
-best_models <- map_df(names(specs2), function(x) {
+best_models <- map_df(names(specs), function(x) {
   model_results %>%
     filter(species == x) %>%
     filter(cbi_val_pvalue <= 0.05) %>%
