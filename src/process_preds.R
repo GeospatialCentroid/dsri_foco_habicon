@@ -8,7 +8,7 @@
 #' @param aoi_path File pathway to the 'aoi' file that will be used to standardize crs and ext
 #' @param resolution Desired resolution for processed raster file output
 #' @param type Categorical argument that specifies the landscape metric calculation ("perccov" = percent cover;
-#' "dist" = distance to (m); "raw" = raw, rasterized cover)
+#' @param dist Buffer distance (in m) to add around the AOI (useful for dist and perc cover calculations)
 #' @param buffer If type="perccov", the window size for focal statistics. Must be an odd number. Default is 3, which means a square of all the touching cells.
 #' @param save Whether to save (TRUE) the resulting dataframe (as .tif) or not (FALSE)
 #' @param output_path If `save = TRUE`, the file path to save the dataframe.
@@ -16,10 +16,10 @@
 #' @return A spatraster with crs and ext that is consistent with aoi and res that is set to desired resolution
 
 # write function that reads in predictors and matches CRS and extent to the aoi
-process_preds <- function(predictor_path, aoi, resolution, type, buffer = 3, field = NULL, save, output_path) {
+process_preds <- function(predictor_path, aoi, resolution, type, dist = 1000, buffer = 3, field = NULL, save, output_path) {
   
-  # aoi buffer idea
-  #buffered_aoi <- st_buffer(aoi, dist = dist)
+  # buffer the aoi
+  aoi <- st_buffer(aoi, dist = dist)
   
   # Initialize variables to hold the processed objects
   rast_shapefile <- NULL
