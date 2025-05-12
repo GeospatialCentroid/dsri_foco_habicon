@@ -12,7 +12,7 @@ source("setup.R")
 # app patch maps
 patch_maps <- map(
   list.files(
-    "data/output_habicon_2025-04-03/",
+    "data/output_habicon_2025-04-28/",
     pattern = "patch_priority.tif",
     full.names = TRUE
   ),
@@ -20,8 +20,8 @@ patch_maps <- map(
 )
 
 ## replace V. cardui update
-patch_maps[[8]] <- terra::rast("data/output_habicon_2025-04-08/Vanessa_cardui_patch_priority.tif")
-
+# patch_maps[[8]] <- terra::rast("data/output_habicon_2025-04-08/Vanessa_cardui_patch_priority.tif")
+# 
 
 # save to app
 map(patch_maps, ~writeRaster(.x, filename = paste0("shiny/app_data/output_habicon/", tools::file_path_sans_ext(basename(sources(.x))), ".tif"), overwrite = TRUE))
@@ -33,7 +33,7 @@ map(patch_maps, ~writeRaster(.x, filename = paste0("shiny/app_data/output_habico
 # app patch maps
 corr_maps <- map(
   list.files(
-    "data/output_habicon_2025-04-03/",
+    "data/output_habicon_2025-04-28/",
     pattern = "corridor_priority.tif",
     full.names = TRUE
   ),
@@ -41,7 +41,7 @@ corr_maps <- map(
 )
 
 ## replace V. cardui update
-corr_maps[[8]] <- terra::rast("data/output_habicon_2025-04-08/Vanessa_cardui_corridor_priority.tif")
+# corr_maps[[8]] <- terra::rast("data/output_habicon_2025-04-08/Vanessa_cardui_corridor_priority.tif")
 
 
 # save to app
@@ -60,8 +60,8 @@ rescale_function <- function(x) {
 # patch priority
 
 ## V Cardui is is different extent...
-patch_maps[[8]] <- patch_maps[[8]] %>% 
-  resample(patch_maps[[1]])
+# patch_maps[[8]] <- patch_maps[[8]] %>% 
+#   resample(patch_maps[[1]])
 
 patch_rescale <- map(patch_maps, rescale_function) %>%
   # reduce to single spatraster
@@ -81,8 +81,8 @@ patch_sum <- map(c("qwa", "btwn", "dECA"), function(x) {
 # corridor priority
 
 # V cardui match extent
-corr_maps[[8]] <- corr_maps[[8]] %>% 
-  resample(corr_maps[[1]])
+# corr_maps[[8]] <- corr_maps[[8]] %>% 
+#   resample(corr_maps[[1]])
 
 ## rescale values and sum all together
 corr_sum <- map(corr_maps, habicon::rescale_map) %>%
