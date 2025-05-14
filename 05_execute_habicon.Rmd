@@ -4,16 +4,6 @@
 source("setup.R")
 ```
 
-Load Habicon:
-
-```{r eval=FALSE}
-devtools::install_github("ccmothes/habicon")
-```
-
-```{r}
-library(habicon)
-```
-
 ## Read in suitability and connectivity maps
 
 ```{r}
@@ -74,7 +64,7 @@ if(!dir.exists(output_path)) {
 
 
 # Species Dispersal Distances (retrieved from NIC 2019 report) CHECK ORDER
-distance <- c(422, 3300, 3219, 805, 115, 281, 305, 16093)
+distance <- c(422, 2172, 3219, 805, 115, 281, 305, 16093)
 ```
 
 ## Prep Maps

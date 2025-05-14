@@ -56,6 +56,17 @@ if (!"ENMeval" %in% installed.packages() | packageVersion("ENMeval") < "2.0.5") 
 library("ENMeval")
 
 
+# install habicon
+if (!"habicon" %in% installed.packages()) {
+  
+  devtools::install_github("ccmothes/habicon")
+  
+}
+
+library(habicon)
+
+
+
 # source all functions --------------------------
 
 purrr::map(list.files(
