@@ -49,7 +49,7 @@ corr_all <- terra::rast('app_data/output_habicon/corridor_priority_all.tif')
 
 # richness palettes (patches is reactive below)
 joint_corr_pal <- colorNumeric(
-  palette = "RdPu",
+  palette = c("#fef3c7", "#fcd34d", "#f59e0b", "#d97706", "#92400e"),
   domain = values(corr_all),
   na.color = "transparent"
 )
@@ -245,6 +245,7 @@ ui <- navbarPage(
               these findings more accessible to policymakers, stakeholders, and the public
               to better facilitate land use planning decisions and promote a socially equitable decision-making process."
       ),
+      p(strong("Disclaimer:"), "This application is currently in its", em("beta"), "version. As this tool is the product of a seed grant, there are aspects that could use updates and improvements, such as outdated predictor datasets. However, it is important to note that all species models reported high model performance."),
     )),
     # Goals Section
     card(id = "goals_section", card_header(h3("Goals & Objectives")), card_body(
@@ -525,7 +526,8 @@ server <- function(input, output, session) {
   ## species patches
   sp_patch_pal <- reactive({
     colorNumeric(
-        palette = "YlGn",
+        #palette = "YlGn",
+        palette = c("#86efac", "#22c55e", "#166534", "#0f2419"),
         domain = values(sp_patches()),
         na.color = "transparent"
       )
@@ -544,7 +546,7 @@ server <- function(input, output, session) {
   ## joint patches
   joint_patch_pal <- reactive({
     colorNumeric(
-      palette = "YlGn",
+      palette = c("#cafad9", "#86efac", "#22c55e", "#166534", "#0f2419"),
       domain = values(joint_patches()),
       na.color = "transparent"
     )
@@ -563,7 +565,7 @@ server <- function(input, output, session) {
   ## corridors
   sp_corr_pal <- reactive({
     colorNumeric(
-      palette = "RdPu",
+      palette = c("#fef3c7", "#fcd34d", "#f59e0b", "#d97706", "#92400e"),
       domain = values(sp_corridors()),
       na.color = "transparent"
     )
