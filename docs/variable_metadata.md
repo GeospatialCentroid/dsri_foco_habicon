@@ -26,7 +26,7 @@ available)</strong></td>
 <td>lc_inf_greenspace.tif</td>
 <td>Greenspace that is not formally owned or managed. Data produced by
 Co-PI <a href="https://sites.warnercnr.colostate.edu/sbombaci/">Sara
-Bombacci’s</a> lab group.</td>
+Bombaci’s</a> lab group.</td>
 <td>2024</td>
 <td>Shapefile</td>
 </tr>
@@ -93,7 +93,7 @@ teach us about human-made forests? Urban Ecosystems (2022)</a>.</td>
 <td>lc_OtherPaved.tif</td>
 <td>Data produced by Co-PI <a
 href="https://sites.warnercnr.colostate.edu/sbombaci/">Sara
-Bombacci’s</a> lab group.</td>
+Bombaci’s</a> lab group.</td>
 <td>2024</td>
 <td>1m</td>
 </tr>
@@ -103,7 +103,7 @@ Bombacci’s</a> lab group.</td>
 <td>lc_Roads_Railroads.tif</td>
 <td>Data produced by Co-PI <a
 href="https://sites.warnercnr.colostate.edu/sbombaci/">Sara
-Bombacci’s</a> lab group.</td>
+Bombaci’s</a> lab group.</td>
 <td>2024</td>
 <td>1m</td>
 </tr>
