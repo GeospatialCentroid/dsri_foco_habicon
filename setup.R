@@ -47,10 +47,14 @@ packages <- c(packages, "tidyverse")
 packageLoad(packages)
 
 # install github dev version of ENMeval to use parellization for null models
-if (!"ENMeval" %in% installed.packages() | packageVersion("ENMeval") < "2.0.5") {
-  
+if (!"ENMeval" %in% installed.packages())
+  {
   devtools::install_github("jamiemkass/ENMeval")
+  
+}
 
+if (packageVersion("ENMeval") < "2.0.5") {
+  devtools::install_github("jamiemkass/ENMeval")
 }
 
 library("ENMeval")
