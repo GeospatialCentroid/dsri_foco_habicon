@@ -49,7 +49,7 @@ corr_all <- terra::rast('app_data/output_habicon/corridor_priority_all.tif')
 
 # richness palettes (patches is reactive below)
 joint_corr_pal <- colorNumeric(
-  palette = c("#fef3c7", "#fcd34d", "#f59e0b", "#d97706", "#92400e"),
+  palette = c("#fffbeb", "#fcd34d", "#fbbf24", "#f59e0b", "#d97706", "#b45309","#92400e"),
   domain = values(corr_all),
   na.color = "transparent"
 )
@@ -207,8 +207,10 @@ ui <- navbarPage(
              overlap with different socioeconomic factors in Fort Collins."
         )
       ),
-      
-      div(
+      layout_columns(
+        col_widths = c(8, 4),
+        
+      #div(
         #style = "height: calc(100vh - 60px); overflow-y: auto;",
         card(
           full_screen = TRUE,
@@ -217,6 +219,47 @@ ui <- navbarPage(
           leafletOutput("map", height = "100%"),
           HTML(html_fix)
         ),
+      # Summary statistics panel
+      card(
+        height = "600px",
+        card_header("Summary Statistics"),
+        card_body(
+          h5("Species Overview"),
+          p("This panel displays key metrics for the selected species habitat and connectivity analysis."),
+          
+          hr(),
+          
+          h5("Quick Stats"),
+          div(
+            style = "background-color: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 15px;",
+            div(
+              style = "display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;",
+              strong("Total Patches:"),
+              span(textOutput("stat_patches", inline = TRUE), style = "font-size: 1.2em; color: #0066cc;")
+            ),
+            div(
+              style = "display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;",
+              strong("Total Area (km²):"),
+              span(textOutput("stat_area", inline = TRUE), style = "font-size: 1.2em; color: #009933;")
+            ),
+            div(
+              style = "display: flex; justify-content: space-between; align-items: center;",
+              strong("Connectivity Index:"),
+              span(textOutput("stat_connectivity", inline = TRUE), style = "font-size: 1.2em; color: #ff6600;")
+            )
+          ),
+          
+          hr(),
+          
+          h5("Analysis Notes"),
+          div(
+            style = "background-color: #e3f2fd; padding: 10px; border-radius: 5px; font-size: 0.9em;",
+            p("• Patches represent suitable habitat areas based on MaxEnt models"),
+            p("• Connectivity index measures landscape permeability for species movement"),
+            p("• Values update dynamically based on selected species and analysis parameters")
+          )
+        )
+      )
         
         # card(
         #   height = "400px",
@@ -527,7 +570,8 @@ server <- function(input, output, session) {
   sp_patch_pal <- reactive({
     colorNumeric(
         #palette = "YlGn",
-        palette = c("#86efac", "#22c55e", "#166534", "#0f2419"),
+        #palette = c("#86efac", "#22c55e", "#166534", "#0f2419"),
+        palette = c("#d1fae5", "#86efac", "#4ade80", "#22c55e", "#15803d", "#166534", "#14532d"),
         domain = values(sp_patches()),
         na.color = "transparent"
       )
@@ -546,7 +590,8 @@ server <- function(input, output, session) {
   ## joint patches
   joint_patch_pal <- reactive({
     colorNumeric(
-      palette = c("#cafad9", "#86efac", "#22c55e", "#166534", "#0f2419"),
+      #palette = c("#cafad9", "#86efac", "#22c55e", "#166534", "#0f2419"),
+      palette = c("#d1fae5", "#86efac", "#4ade80", "#22c55e", "#15803d", "#166534", "#14532d", "#0f2419"),
       domain = values(joint_patches()),
       na.color = "transparent"
     )
@@ -565,7 +610,8 @@ server <- function(input, output, session) {
   ## corridors
   sp_corr_pal <- reactive({
     colorNumeric(
-      palette = c("#fef3c7", "#fcd34d", "#f59e0b", "#d97706", "#92400e"),
+      #palette = c("#fef3c7", "#fcd34d", "#f59e0b", "#d97706", "#92400e"),
+      palette = c("#fffbeb", "#fcd34d", "#fbbf24", "#f59e0b", "#d97706", "#b45309","#92400e"),
       domain = values(sp_corridors()),
       na.color = "transparent"
     )
