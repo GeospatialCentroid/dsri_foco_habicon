@@ -49,8 +49,14 @@ corr_all <- terra::rast('app_data/output_habicon/corridor_priority_all.tif')
 
 # richness palettes (patches is reactive below)
 joint_corr_pal <- colorNumeric(
-  palette = c("#fef3c7", "#fcd34d", "#f59e0b", "#d97706", "#92400e"),
-  domain = values(corr_all),
+  #palette = "RdPu",
+  palette = c("#fffbeb",
+             # "#fcd34d",
+             # "#fbbf24",
+              "#f59e0b",
+              "#d97706",
+              "#b45309",
+              "#92400e"),   domain = values(corr_all),
   na.color = "transparent"
 )
 
@@ -127,13 +133,6 @@ ui <- navbarPage(
           accordion_panel(
             "Species Layers",
             materialSwitch("model_type", "View Joint Species Maps", value = FALSE),
-            # switchInput(
-            #   inputId = "model_type",
-            #   label = "View Maps By:",  # Add a label for context
-            #   onLabel = "Single Species",            # Label when switched on
-            #   offLabel = "All Species",            # Label when switched off
-            #   value = TRUE              # Default value (off = "No")
-            # ),
             conditionalPanel(
               "input.model_type == false",
               radioButtons(
@@ -166,6 +165,8 @@ ui <- navbarPage(
               choiceValues = c("qwa", "btwn", "dECA"),
               selected = "qwa"
             ),
+            helpText("For metric definitions see the ", 
+              actionLink("link_to_glossary", "Glossary")),
             helpText(
               "Species joint maps were calculated by normalizing and summing priority maps for all species."
             ),
@@ -207,23 +208,61 @@ ui <- navbarPage(
              overlap with different socioeconomic factors in Fort Collins."
         )
       ),
-      
+      # layout_columns(
+      #   col_widths = c(8, 4),
+        
       div(
         #style = "height: calc(100vh - 60px); overflow-y: auto;",
         card(
           full_screen = TRUE,
           height = "800px",
-          #card_header("Interactive Map"),
           leafletOutput("map", height = "100%"),
           HTML(html_fix)
         ),
-        
+      # # Summary statistics panel
+      # card(
+      #   height = "600px",
+      #   card_header("Summary Statistics"),
+      #   card_body(
+      #     h5("Species Overview"),
+      #     p("This panel displays key metrics for the selected species habitat and connectivity analysis."),
+      #     
+      #     hr(),
+      #     
+      #     h5("Quick Stats"),
+      #     div(
+      #       style = "background-color: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 15px;",
+      #       div(
+      #         style = "display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;",
+      #         strong("Total Patches:"),
+      #         span(textOutput("stat_patches", inline = TRUE), style = "font-size: 1.2em; color: #0066cc;")
+      #       ),
+      #       div(
+      #         style = "display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;",
+      #         strong("Total Area (km²):"),
+      #         span(textOutput("stat_area", inline = TRUE), style = "font-size: 1.2em; color: #009933;")
+      #       ),
+      #       div(
+      #         style = "display: flex; justify-content: space-between; align-items: center;",
+      #         strong("Connectivity Index:"),
+      #         span(textOutput("stat_connectivity", inline = TRUE), style = "font-size: 1.2em; color: #ff6600;")
+      #       )
+      #     ),
+      #     
+      #     hr(),
+      #     
+      #     h5("Analysis Notes"),
+      #     div(
+      #       style = "background-color: #e3f2fd; padding: 10px; border-radius: 5px; font-size: 0.9em;",
+      #       p("• Patches represent suitable habitat areas based on MaxEnt models"),
+      #       p("• Connectivity index measures landscape permeability for species movement"),
+      #       p("• Values update dynamically based on selected species and analysis parameters")
+      #     )
+      #   )
+      # )
+      #   
         # card(
-        #   height = "400px",
-        #   card_header("Area Statistics"),
-        #   div(style = "padding: 15px;", textOutput("stats_text")),
-        #   div(style = "height: 300px; padding: 15px;", plotOutput("priority_plot", height = "100%"))
-        # )
+       
       )
     )
   ),
@@ -464,7 +503,7 @@ ui <- navbarPage(
                selectInput(
                  "sdm_species",
                  "Select a Species:",
-                 choices = species_vect
+                 choices = setNames(species_names$scientific_name, species_names$common_name)
                ),
              ),
              mainPanel(
@@ -500,6 +539,10 @@ ui <- navbarPage(
 
 server <- function(input, output, session) {
   
+  ## Jump to Glossary tab
+  observeEvent(input$link_to_glossary, {
+    updateTabsetPanel(session, "nav", selected = "Methods")
+  })
   
   ## INTERACTIVE MAP --------------------------
   
@@ -527,7 +570,7 @@ server <- function(input, output, session) {
   sp_patch_pal <- reactive({
     colorNumeric(
         #palette = "YlGn",
-        palette = c("#86efac", "#22c55e", "#166534", "#0f2419"),
+        palette = c("#d1fae5", "#86efac", "#4ade80", "#22c55e", "#15803d", "#166534", "#14532d"),
         domain = values(sp_patches()),
         na.color = "transparent"
       )
@@ -546,7 +589,8 @@ server <- function(input, output, session) {
   ## joint patches
   joint_patch_pal <- reactive({
     colorNumeric(
-      palette = c("#cafad9", "#86efac", "#22c55e", "#166534", "#0f2419"),
+      #palette = "YlGn",
+      palette = c("#d1fae5", "#86efac", "#4ade80", "#22c55e", "#15803d", "#166534", "#14532d", "#0f2419"),
       domain = values(joint_patches()),
       na.color = "transparent"
     )
@@ -565,8 +609,15 @@ server <- function(input, output, session) {
   ## corridors
   sp_corr_pal <- reactive({
     colorNumeric(
-      palette = c("#fef3c7", "#fcd34d", "#f59e0b", "#d97706", "#92400e"),
-      domain = values(sp_corridors()),
+      #palette = "RdPu",
+      palette = c(#"#fffbeb",
+                  "#fcedb8",
+                  #"#fcd34d",
+                 # "#fbbf24",
+                  "#f59e0b",
+                  "#d97706",
+                  "#b45309",
+                  "#92400e"),       domain = values(sp_corridors()),
       na.color = "transparent"
     )
   })
@@ -577,7 +628,7 @@ server <- function(input, output, session) {
     leaflet() %>%
       addTiles(group = "OpenStreetMap") %>% 
       addProviderTiles(providers$CartoDB.Positron, group = "CartoDB Positron") %>%
-      setView(lng = -105.05, lat = 40.57, zoom = 12) %>% 
+      setView(lng = -105.05, lat = 40.53, zoom = 12) %>% 
       addPolygons(
         data = nat_areas,
         color = "green",
@@ -622,30 +673,6 @@ server <- function(input, output, session) {
         clearImages()
       
       # Add raster layers
-      if ("Patches" %in% input$map_type) {
-        leafletProxy("map") %>%
-          addRasterImage(
-            sp_patches(),
-            colors = sp_patch_pal(),
-            opacity = 0.9,
-            group = "Patches"
-          ) %>%
-          #addLegendNumeric(
-          addLegend(
-            group = "Patches",
-            pal = sp_patch_pal(),
-            values = na.omit(values(sp_patches())),
-            bins = 5,
-            title = sp_patch_title(),
-            labFormat = function(type, cuts, p) {
-              c("Low", rep("", length(cuts) - 2), "High")
-            },
-            position = "topright"
-            #decreasing = T,
-            #labelStyle = "font-family: 'Arial'; font-size: 14px; color: #555;"
-          )
-        
-      }
       
       if ("Corridors" %in% input$map_type) {
         leafletProxy("map") %>%
@@ -671,6 +698,33 @@ server <- function(input, output, session) {
           )
         
       }
+      if ("Patches" %in% input$map_type) {
+        leafletProxy("map") %>%
+          addRasterImage(
+            sp_patches(),
+            colors = sp_patch_pal(),
+            opacity = 0.8,
+            group = "Patches"
+          ) %>%
+          #addLegendNumeric(
+          addLegend(
+            group = "Patches",
+            pal = sp_patch_pal(),
+            values = na.omit(values(sp_patches())),
+            bins = 5,
+            #title = sp_patch_title(),
+            title = "Patch Priority",
+            labFormat = function(type, cuts, p) {
+              c("Low", rep("", length(cuts) - 2), "High")
+            },
+            position = "topright"
+            #decreasing = T,
+            #labelStyle = "font-family: 'Arial'; font-size: 14px; color: #555;"
+          )
+        
+      }
+      
+     
       
       # remove species maps if neither box is checked
       if (is.null(input$map_type)) {
@@ -687,28 +741,6 @@ server <- function(input, output, session) {
         clearImages() %>% 
         clearControls()
       
-      # Add raster layers
-      if("Patches" %in% input$richness_maps){
-        leafletProxy("map") %>%
-          addRasterImage(joint_patches(),
-                         colors = joint_patch_pal(),
-                         opacity = 0.9,
-                         group = "Patches") %>%
-          #addLegendNumeric(
-          addLegend(
-            group = "Patches",
-            pal = joint_patch_pal(),
-            bins = 5,
-            values = na.omit(values(joint_patches())),
-            title = joint_patch_title(),
-            labFormat = function(type, cuts, p) {
-              c("Low", rep("", length(cuts) - 2), "High")},
-            position = "topright"
-            #decreasing = T,
-            #labelStyle = "font-family: 'Arial'; font-size: 14px; color: #555;"
-          )
-
-      }
       
       if ("Corridors" %in% input$richness_maps){
         leafletProxy("map") %>% 
@@ -732,8 +764,31 @@ server <- function(input, output, session) {
         
       }
       
+      # Add raster layers
+      if("Patches" %in% input$richness_maps){
+        leafletProxy("map") %>%
+          addRasterImage(joint_patches(),
+                         colors = joint_patch_pal(),
+                         opacity = 0.7,
+                         group = "Patches") %>%
+          #addLegendNumeric(
+          addLegend(
+            group = "Patches",
+            pal = joint_patch_pal(),
+            bins = 5,
+            values = na.omit(values(joint_patches())),
+            #title = joint_patch_title(),
+            title = "Patch Priority",
+            labFormat = function(type, cuts, p) {
+              c("Low", rep("", length(cuts) - 2), "High")},
+            position = "topright"
+            #decreasing = T,
+            #labelStyle = "font-family: 'Arial'; font-size: 14px; color: #555;"
+          )
+
+      }
       
-      
+
     }
       
     
